@@ -1,12 +1,30 @@
-import { Construct } from 'constructs';
-import { App, Chart, ChartProps } from 'cdk8s';
+import { App, Chart } from 'cdk8s'
+import * as kplus from 'cdk8s-plus-32'
+import { Construct } from 'constructs'
+
+const env = 'dev'
+
+class Docker extends Construct { }
+
 
 export class MyChart extends Chart {
-  constructor(scope: Construct, id: string, props: ChartProps = { }) {
-    super(scope, id, props);
+  constructor(scope: Construct, id: string) {
+    super(scope, id, {
+      namespace: env,
+      labels: {
+        env
+      },
+      disableResourceNameHashes: true
+    });
 
-    // define resources here
+    this.addDependency
 
+
+    const docker = new Docker(scope, 'docker')
+
+    new kplus.Deployment(this, 'App', {
+      containers: [{ image: 'nginx' }],
+    });
   }
 }
 
