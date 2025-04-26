@@ -7,27 +7,31 @@ export function createCli (app: K8sApp) {
 
 	const synthCommand = new Command()
 		.command('synth')
-		.description('Generate yaml representation of code')
-		.action(async () => {
+		.description('generate yaml representation of code')
+		.option('-q --quiet', 'silent', false)
+		.action(async (options) => {
 			const result = await app.synth(true)
-			console.log(result)
+			if (!options?.quiet) console.log(result)
 		})
 
 	const applyCommand = new Command()
 		.command('apply')
-		.description('Apply code changes to k8s cluster')
-		.action(async () => {
-			const result = await app.synth()
-			await exec(`kubectl get namespace ${app.env} || kubectl create namespace ${app.env}`)
-			await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${app.env} --applyset=${app.applySetName} -f -`, result)
+		.description('apply code changes to k8s cluster')
+		.option('--fresh', 'run fresh installation', false)
+		.option('--skip-image-builds', 'force skip image builds', false)
+		.action(async (options) => {
+			const result = await app.synth(!options?.skipImageBuilds)
+			if (options.fresh) await exec(`kubectl delete ns ${app.namespace} || true`)
+			else await exec(`kubectl get ns ${app.namespace} || kubectl create ns ${app.namespace}`)
+			await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${app.namespace} --applyset=${app.applySetName} -f -`, result)
 		})
 
 	const diffCommand = new Command()
 		.command('diff')
-		.description('Show diff between code and k8s cluster')
+		.description('show diff between code and k8s cluster')
 		.action(async () => {
 			const result = await app.synth(true)
-			await exec(`kubectl diff --prune -n=${app.env} -f -`, result, true)
+			await exec(`kubectl diff --prune -n=${app.namespace} -f -`, result, true)
 		})
 
 	program

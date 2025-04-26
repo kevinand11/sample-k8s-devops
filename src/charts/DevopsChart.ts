@@ -1,11 +1,11 @@
 import path from 'node:path'
-import { cdk8s, K8sApp, kplus, LocalDockerImage, Platform } from '../lib'
+import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform } from '../lib'
 
 export class DevopsChart extends cdk8s.Chart {
-  constructor(scope: K8sApp) {
+  constructor(private readonly scope: K8sApp) {
     super(scope, 'devops', {
       disableResourceNameHashes: true,
-      namespace: scope.env,
+      namespace: scope.namespace,
       labels: { env: scope.env },
     });
 
@@ -25,21 +25,14 @@ export class DevopsChart extends cdk8s.Chart {
       }],
     });
 
-    /* new cdk8s.Helm(this, 'redis', {
-      chart: 'oci://registry-1.docker.io/bitnamicharts/redis',
-      version: '20.13.2',
-      namespace: scope.env,
-      values: {
-        auth: {
-          password: 'password'
-        },
-      },
-    })
+    this.createRedis()
 
-    new cdk8s.Helm(this, 'mongo', {
+
+    /*
+
+    new K8sHelm(this, 'mongo', {
       chart: 'oci://registry-1.docker.io/bitnamicharts/mongodb',
       version: '16.5.2',
-      namespace: scope.env,
       values: {
         architecture: 'replicaset',
         auth: {
@@ -51,10 +44,9 @@ export class DevopsChart extends cdk8s.Chart {
       },
     })
 
-    new cdk8s.Helm(this, 'kafka', {
+    new K8sHelm(this, 'kafka', {
       chart: 'oci://registry-1.docker.io/bitnamicharts/kafka',
       version: '32.2.1',
-      namespace: scope.env,
       values: {
         replicaCount: 2,
       },
@@ -77,17 +69,7 @@ export class DevopsChart extends cdk8s.Chart {
       ports: [{ port: 30001, targetPort: 8081, nodePort: 30001 }]
     })
 
-    new kplus.Deployment(this, 'redis-commander', {
-      replicas: 1,
-      containers: [{
-        image: 'rediscommander/redis-commander:latest',
-        portNumber: 8081,
-        securityContext: { ensureNonRoot: false, user: 0 },
-      }]
-    }).exposeViaService({
-      serviceType: kplus.ServiceType.NODE_PORT,
-      ports: [{ port: 30002, targetPort: 8081, nodePort: 30002 }]
-    })
+
 
     new kplus.Deployment(this, 'kafka-ui', {
       replicas: 1,
@@ -104,5 +86,42 @@ export class DevopsChart extends cdk8s.Chart {
       serviceType: kplus.ServiceType.NODE_PORT,
       ports: [{ port: 30003, targetPort: 8080, nodePort: 30003 }]
     }) */
+  }
+
+  createRedis () {
+    const password = 'password'
+
+    const redis = new K8sHelm(this, 'redis', {
+      chart: 'oci://registry-1.docker.io/bitnamicharts/redis',
+      version: '20.13.2',
+      values: {
+        auth: {
+          enabled: false
+        },
+      },
+    })
+
+    const masterRedisService = redis.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.name.includes('master'))!
+    const redisHost = `${masterRedisService.name}.${this.scope.env}.svc.cluster.local`
+
+    const redisUrl = `redis://${redisHost}`
+
+    new kplus.Deployment(this, 'redis-commander', {
+      replicas: 1,
+      containers: [{
+        image: 'rediscommander/redis-commander:latest',
+        portNumber: 8081,
+        securityContext: { ensureNonRoot: false, user: 0 },
+        envVariables: {
+          REDIS_HOSTS: kplus.EnvValue.fromValue(redisHost),
+          REDIS_PASSWORD: kplus.EnvValue.fromValue(password),
+        }
+      }]
+    }).exposeViaService({
+      serviceType: kplus.ServiceType.NODE_PORT,
+      ports: [{ port: 30002, targetPort: 8081, nodePort: 30002 }],
+    })
+
+    return { redisUrl }
   }
 }
