@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { cdk8s, K8sApp, kplus, LocalDockerImage, Platform } from './lib'
+import { cdk8s, K8sApp, kplus, LocalDockerImage, Platform } from '../lib'
 
 export class DevopsChart extends cdk8s.Chart {
   constructor(scope: K8sApp) {
@@ -9,7 +9,23 @@ export class DevopsChart extends cdk8s.Chart {
       labels: { env: scope.env },
     });
 
-    new cdk8s.Helm(this, 'redis', {
+    const image = new LocalDockerImage(this, 'docker', {
+      name: 'kevinand11/k8s-demo-app',
+      build: {
+        context: path.resolve(__dirname, '../app'),
+        platforms: [Platform.LINUX_AMD64]
+      }
+    })
+
+    new kplus.Deployment(this, 'App', {
+      replicas: 1,
+      containers: [{
+        image: image.nameTag,
+        securityContext: { ensureNonRoot: false, user: 0 },
+      }],
+    });
+
+    /* new cdk8s.Helm(this, 'redis', {
       chart: 'oci://registry-1.docker.io/bitnamicharts/redis',
       version: '20.13.2',
       namespace: scope.env,
@@ -43,22 +59,6 @@ export class DevopsChart extends cdk8s.Chart {
         replicaCount: 2,
       },
     })
-
-    const image = new LocalDockerImage(this, 'docker', {
-      name: 'kevinand11/k8s-demo-app',
-      build: {
-        context: path.resolve(__dirname, 'app'),
-        platforms: [Platform.LINUX_AMD64]
-      }
-    })
-
-    new kplus.Deployment(this, 'App', {
-      replicas: 1,
-      containers: [{
-        image: image.nameTag,
-        securityContext: { ensureNonRoot: false, user: 0 },
-      }],
-    });
 
     new kplus.Deployment(this, 'mongo-express', {
       replicas: 1,
@@ -103,14 +103,6 @@ export class DevopsChart extends cdk8s.Chart {
     }).exposeViaService({
       serviceType: kplus.ServiceType.NODE_PORT,
       ports: [{ port: 30003, targetPort: 8080, nodePort: 30003 }]
-    })
+    }) */
   }
 }
-
-const app = new K8sApp({
-  env: 'dev',
-  localDockerImages: { synth: false }
-});
-
-new DevopsChart(app);
-app.synth();

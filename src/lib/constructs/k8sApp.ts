@@ -5,6 +5,7 @@ export interface K8sAppProps {
 	env: string
 	infra?: boolean
 	app?: AppProps
+	applySetName?: string
 	localDockerImages?: {
 		synth?: boolean
 	}
@@ -22,9 +23,13 @@ export class K8sApp extends App {
 		return this.props.env
 	}
 
-	async synth () {
+	get applySetName () {
+		return this.props.applySetName ?? `${this.env}-apply-set`
+	}
+
+	async synth (disableExternal: boolean = false) {
 		const dockerNodes = this.node.findAll().filter((node) => node instanceof LocalDockerImage)
-		if (this.props.localDockerImages?.synth) {
+		if (this.props.localDockerImages?.synth && !disableExternal) {
 			await Promise.all(
 				dockerNodes.map((node) => node.synth())
 			)
