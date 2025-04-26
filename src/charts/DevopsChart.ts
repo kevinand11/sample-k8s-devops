@@ -25,9 +25,17 @@ export class DevopsChart extends cdk8s.Chart {
       }],
     });
 
+    this.createIngressController()
     // this.createRedis()
-    // this.createMongo()
+    this.createMongo()
     // this.createKafka()
+  }
+
+  createIngressController () {
+    new K8sHelm(this, 'traefik-controller', {
+      chart: 'oci://ghcr.io/traefik/helm/traefik',
+      version: '35.1.0',
+    })
   }
 
   createMongo () {
@@ -35,19 +43,25 @@ export class DevopsChart extends cdk8s.Chart {
       rootUser: 'user',
       rootPassword: 'password'
     }
+    const replicas = 3
+    const replicaSetName = 'rs0'
 
-    new K8sHelm(this, 'mongo', {
+    const mongo = new K8sHelm(this, 'mongo', {
       chart: 'oci://registry-1.docker.io/bitnamicharts/mongodb',
       version: '16.5.2',
       values: {
         architecture: 'replicaset',
         auth,
-        replicaCount: 3,
-        replicaSetName: 'rs0',
+        replicaCount: replicas,
+        replicaSetName,
       },
     })
 
-    const mongoHost = `mongo.${this.scope.namespace}.svc.cluster.local`
+    const mongoService = mongo.apiObjects.find((o) => cdk8s.ApiObject.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
+    const mongoStatefulSet = mongo.apiObjects.find((o) => cdk8s.ApiObject.isConstruct(o) && o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
+
+    const hosts = new Array(replicas).fill(0).map((_, i) => `${mongoStatefulSet.name}-${i}.${mongoService.name}.${this.scope.namespace}.svc.cluster.local`)
+    const url = `mongo://${auth.rootUser}:${auth.rootPassword}@${hosts.join(',')}:27017/replicaSet=${replicaSetName}`
 
     new kplus.Deployment(this, 'mongo-express', {
       replicas: 1,
@@ -56,16 +70,17 @@ export class DevopsChart extends cdk8s.Chart {
         portNumber: 8081,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
-          ME_CONFIG_MONGODB_SERVER: kplus.EnvValue.fromValue(mongoHost),
+          ME_CONFIG_MONGODB_SERVER: kplus.EnvValue.fromValue(mongoService.name),
           ME_CONFIG_MONGODB_ADMINUSERNAME: kplus.EnvValue.fromValue(auth.rootUser),
           ME_CONFIG_MONGODB_ADMINPASSWORD: kplus.EnvValue.fromValue(auth.rootPassword),
+          ME_CONFIG_BASICAUTH_ENABLED: kplus.EnvValue.fromValue('false'),
         }
       }]
-    }).exposeViaService({
-      serviceType: kplus.ServiceType.NODE_PORT,
-      ports: [{ port: 30001, targetPort: 8081, nodePort: 30001 }]
+    }).exposeViaIngress('/', {
+      ports: [{ port: 81, targetPort: 8081 }]
     })
 
+    return { url }
   }
 
   createRedis () {
