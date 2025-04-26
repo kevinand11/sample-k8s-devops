@@ -25,32 +25,29 @@ export class DevopsChart extends cdk8s.Chart {
       }],
     });
 
-    this.createRedis()
+    // this.createRedis()
+    // this.createMongo()
+    // this.createKafka()
+  }
 
-
-    /*
+  createMongo () {
+    const auth = {
+      rootUser: 'user',
+      rootPassword: 'password'
+    }
 
     new K8sHelm(this, 'mongo', {
       chart: 'oci://registry-1.docker.io/bitnamicharts/mongodb',
       version: '16.5.2',
       values: {
         architecture: 'replicaset',
-        auth: {
-          rootUser: 'user',
-          rootPassword: 'password'
-        },
+        auth,
         replicaCount: 3,
         replicaSetName: 'rs0',
       },
     })
 
-    new K8sHelm(this, 'kafka', {
-      chart: 'oci://registry-1.docker.io/bitnamicharts/kafka',
-      version: '32.2.1',
-      values: {
-        replicaCount: 2,
-      },
-    })
+    const mongoHost = `mongo.${this.scope.namespace}.svc.cluster.local`
 
     new kplus.Deployment(this, 'mongo-express', {
       replicas: 1,
@@ -59,9 +56,9 @@ export class DevopsChart extends cdk8s.Chart {
         portNumber: 8081,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
-          ME_CONFIG_MONGODB_SERVER: kplus.EnvValue.fromValue(`mongo.${scope.env}.svc.cluster.local`),
-          ME_CONFIG_MONGODB_ADMINUSERNAME: kplus.EnvValue.fromValue('root'),
-          ME_CONFIG_MONGODB_ADMINPASSWORD: kplus.EnvValue.fromValue('password'),
+          ME_CONFIG_MONGODB_SERVER: kplus.EnvValue.fromValue(mongoHost),
+          ME_CONFIG_MONGODB_ADMINUSERNAME: kplus.EnvValue.fromValue(auth.rootUser),
+          ME_CONFIG_MONGODB_ADMINPASSWORD: kplus.EnvValue.fromValue(auth.rootPassword),
         }
       }]
     }).exposeViaService({
@@ -69,23 +66,6 @@ export class DevopsChart extends cdk8s.Chart {
       ports: [{ port: 30001, targetPort: 8081, nodePort: 30001 }]
     })
 
-
-
-    new kplus.Deployment(this, 'kafka-ui', {
-      replicas: 1,
-      containers: [{
-        image: 'provectuslabs/kafka-ui:master',
-        portNumber: 8080,
-        securityContext: { ensureNonRoot: false, user: 0 },
-        envVariables: {
-          KAFKA_CLUSTERS_0_NAME: kplus.EnvValue.fromValue('local'),
-          KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kplus.EnvValue.fromValue('kafka-uris'),
-        }
-      }]
-    }).exposeViaService({
-      serviceType: kplus.ServiceType.NODE_PORT,
-      ports: [{ port: 30003, targetPort: 8080, nodePort: 30003 }]
-    }) */
   }
 
   createRedis () {
@@ -102,7 +82,7 @@ export class DevopsChart extends cdk8s.Chart {
     })
 
     const masterRedisService = redis.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.name.includes('master'))!
-    const redisHost = `${masterRedisService.name}.${this.scope.env}.svc.cluster.local`
+    const redisHost = `${masterRedisService.name}.${this.scope.namespace}.svc.cluster.local`
 
     const redisUrl = `redis://${redisHost}`
 
@@ -123,5 +103,34 @@ export class DevopsChart extends cdk8s.Chart {
     })
 
     return { redisUrl }
+  }
+
+  createKafka () {
+    new K8sHelm(this, 'kafka', {
+      chart: 'oci://registry-1.docker.io/bitnamicharts/kafka',
+      version: '32.2.1',
+      values: {
+        replicaCount: 2,
+      },
+    })
+
+    const hosts = `kafka.${this.scope.namespace}.svc.cluster.local`
+
+    new kplus.Deployment(this, 'kafka-ui', {
+      replicas: 1,
+      containers: [{
+        image: 'provectuslabs/kafka-ui:master',
+        portNumber: 8080,
+        securityContext: { ensureNonRoot: false, user: 0 },
+        envVariables: {
+          KAFKA_CLUSTERS_0_NAME: kplus.EnvValue.fromValue('local'),
+          KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kplus.EnvValue.fromValue(hosts),
+          KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: kplus.EnvValue.fromValue('PLAINTEXT'),
+        }
+      }]
+    }).exposeViaService({
+      serviceType: kplus.ServiceType.NODE_PORT,
+      ports: [{ port: 30003, targetPort: 8080, nodePort: 30003 }]
+    })
   }
 }
