@@ -1,5 +1,6 @@
 import { App, AppProps, IResolver, ResolutionContext } from 'cdk8s'
 import { LocalDockerImage } from './localDockerImage'
+import { createCli } from '../cli'
 
 export interface K8sAppProps {
 	env: string
@@ -35,7 +36,11 @@ export class K8sApp extends App {
 			)
 		}
 
-		super.synth()
+		return super.synthYaml()
+	}
+
+	async process () {
+		await createCli(this)
 	}
 }
 

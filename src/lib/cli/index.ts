@@ -5,41 +5,34 @@ import { K8sApp } from '../constructs'
 export function createCli (app: K8sApp) {
 	const program = new Command()
 
-	const greetCommand = new Command()
-		.command('greet')
-		.description('Greet the user')
-		.action(async () => {
-			console.log('Hello, folks:')
-		})
-
 	const synthCommand = new Command()
 		.command('synth')
-		.description('Build cdk8s into yaml in dist folder')
+		.description('Generate yaml representation of code')
 		.action(async () => {
-			await app.synth(true)
+			const result = await app.synth(true)
+			console.log(result)
 		})
 
-	const deployCommand = new Command()
-		.command('deploy')
-		.description('Deploy to environment')
+	const applyCommand = new Command()
+		.command('apply')
+		.description('Apply code changes to k8s cluster')
 		.action(async () => {
-			await app.synth()
-			await exec('kubectl', ['create', 'ns', app.env]).catch(() => {})
-			await exec('KUBECTL_APPLYSET=true kubectl', ['apply', '--prune', `-n=${app.env}`, `--applyset=${app.applySetName}`, '-f', app.outdir!])
+			const result = await app.synth()
+			await exec(`kubectl get namespace ${app.env} || kubectl create namespace ${app.env}`)
+			await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${app.env} --applyset=${app.applySetName} -f -`, result)
 		})
 
 	const diffCommand = new Command()
 		.command('diff')
-		.description('Show diff between code and deployed cluster')
+		.description('Show diff between code and k8s cluster')
 		.action(async () => {
-			await app.synth(true)
-			await exec('kubectl', ['diff', '--prune', `-n=${app.env}`, '-f', app.outdir!])
+			const result = await app.synth(true)
+			await exec(`kubectl diff --prune -n=${app.env} -f -`, result, true)
 		})
 
 	program
-		.addCommand(greetCommand)
 		.addCommand(synthCommand)
-		.addCommand(deployCommand)
+		.addCommand(applyCommand)
 		.addCommand(diffCommand)
 		.parseAsync(process.argv)
 }

@@ -1,5 +1,5 @@
 import { DevopsChart } from './charts/DevopsChart'
-import { createCli, K8sApp } from './lib'
+import { K8sApp } from './lib'
 
 export const app = new K8sApp({
   env: 'dev',
@@ -8,4 +8,4 @@ export const app = new K8sApp({
 
 new DevopsChart(app);
 
-createCli(app)
+app.process()

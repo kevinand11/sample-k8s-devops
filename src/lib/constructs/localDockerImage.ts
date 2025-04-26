@@ -48,12 +48,11 @@ export class LocalDockerImage extends K8sConstruct {
 			Object.entries(tags).forEach(([name, tag]) => args.push('--tag', `${name}:${tag}`))
 		}
 
-		await exec('docker', ['buildx', 'build', ...args, path])
+		await exec(['docker', 'buildx', 'build', ...args, path].join(' '))
 	}
 
 	async deploy () {
-		const args = ['image', 'push', this.nameTag]
-		await exec('docker', args)
+		await exec(`docker image push ${this.nameTag}`)
 	}
 
 	async synth () {
