@@ -14,7 +14,7 @@ export interface K8sAppProps {
 export class K8sApp extends App {
 	constructor (private readonly props: K8sAppProps) {
 		const resolvers = props.app?.resolvers ?? []
-		if (props.env && !props.infra) resolvers.push(new EnvPrefixResolver(props.env))
+		// if (props.env && !props.infra) resolvers.push(new EnvPrefixResolver(props.env))
 		super({ ...props.app, resolvers })
 	}
 

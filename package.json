@@ -9,6 +9,7 @@
     "import": "cdk8s import",
     "synth": "cdk8s synth",
     "build": "pnpm synth",
+    "apply": "KUBECTL_APPLYSET=true kubectl apply --prune --applyset=sofa-devops -f ./dist",
     "upgrade": "pnpm i cdk8s@latest cdk8s-cli@latest",
     "upgrade:next": "pnpm i cdk8s@next cdk8s-cli@next"
   },
