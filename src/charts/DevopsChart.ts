@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform } from '../lib'
+import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikStripPrefixMiddleware } from '../lib'
 
 export class DevopsChart extends cdk8s.Chart {
   constructor(private readonly scope: K8sApp) {
@@ -32,9 +32,21 @@ export class DevopsChart extends cdk8s.Chart {
   }
 
   createIngressController () {
+    // new cdk8s.Include(this, 'traefik-crds', {
+    //   url: 'https://github.com/traefik/traefik-helm-chart/releases/download/v35.1.0/traefik.yaml'
+    // })
+
     new K8sHelm(this, 'traefik-controller', {
       chart: 'oci://ghcr.io/traefik/helm/traefik',
       version: '35.1.0',
+      values: {
+        ingressRoute: {
+          dashboard: {
+            enabled: true,
+            entryPoints: ['web']
+          }
+        },
+      },
     })
   }
 
@@ -63,7 +75,9 @@ export class DevopsChart extends cdk8s.Chart {
     const hosts = new Array(replicas).fill(0).map((_, i) => `${mongoStatefulSet.name}-${i}.${mongoService.name}.${this.scope.namespace}.svc.cluster.local`)
     const url = `mongo://${auth.rootUser}:${auth.rootPassword}@${hosts.join(',')}:27017/replicaSet=${replicaSetName}`
 
-    new kplus.Deployment(this, 'mongo-express', {
+    const stripPrefixMiddleware = new TraefikStripPrefixMiddleware(this, 'mongo-express-prefix-middleware', { prefixes: ['mongo-express'] })
+
+    const ingres= new kplus.Deployment(this, 'mongo-express', {
       replicas: 1,
       containers: [{
         image: 'mongo-express:latest',
@@ -73,14 +87,12 @@ export class DevopsChart extends cdk8s.Chart {
           ME_CONFIG_MONGODB_SERVER: kplus.EnvValue.fromValue(mongoService.name),
           ME_CONFIG_MONGODB_ADMINUSERNAME: kplus.EnvValue.fromValue(auth.rootUser),
           ME_CONFIG_MONGODB_ADMINPASSWORD: kplus.EnvValue.fromValue(auth.rootPassword),
-          ME_CONFIG_BASICAUTH_ENABLED: kplus.EnvValue.fromValue('false'),
         }
       }]
-    }).exposeViaIngress('/mongo-express', {
-      ports: [{ port: 81, targetPort: 8081 }]
-    })
+    }).exposeViaIngress('/mongo-express')
 
-    this.createStripPrefixMiddleware('mongo-express-prefix-middleware', 'mongo-express')
+    ingres.metadata.addAnnotation('traefik.ingress.kubernetes.io/router.middlewares', stripPrefixMiddleware.middlewareName)
+    ingres.metadata.addAnnotation('traefik.ingress.kubernetes.io/router.entryPoints', 'web')
 
     return { url }
   }
@@ -150,21 +162,4 @@ export class DevopsChart extends cdk8s.Chart {
       ports: [{ port: 30003, targetPort: 8080, nodePort: 30003 }]
     })
   }
-
-  createStripPrefixMiddleware (id: string, prefix: string) {
-    // TODO: automate with synth methods
-    //  'kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v2.11/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml'
-    return new cdk8s.ApiObject(this, id, {
-      apiVersion: 'traefik.containo.us/v1alpha1',
-      kind: 'Middleware',
-      metadata: {
-        name: `strip-${prefix.replace('/', '')}-prefix`,
-      },
-      spec: {
-        stripPrefix: {
-          prefixes: [`/${prefix}`],
-        },
-      },
-    });
-}
 }

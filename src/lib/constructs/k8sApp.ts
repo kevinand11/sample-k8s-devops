@@ -1,4 +1,4 @@
-import { App, AppProps, IResolver, ResolutionContext } from 'cdk8s'
+import { App, AppProps } from 'cdk8s'
 import { createCli } from '../cli'
 import { LocalDockerImage } from './localDockerImage'
 
