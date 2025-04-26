@@ -76,9 +76,11 @@ export class DevopsChart extends cdk8s.Chart {
           ME_CONFIG_BASICAUTH_ENABLED: kplus.EnvValue.fromValue('false'),
         }
       }]
-    }).exposeViaIngress('/', {
+    }).exposeViaIngress('/mongo-express', {
       ports: [{ port: 81, targetPort: 8081 }]
     })
+
+    this.createStripPrefixMiddleware('mongo-express-prefix-middleware', 'mongo-express')
 
     return { url }
   }
@@ -148,4 +150,21 @@ export class DevopsChart extends cdk8s.Chart {
       ports: [{ port: 30003, targetPort: 8080, nodePort: 30003 }]
     })
   }
+
+  createStripPrefixMiddleware (id: string, prefix: string) {
+    // TODO: automate with synth methods
+    //  'kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v2.11/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml'
+    return new cdk8s.ApiObject(this, id, {
+      apiVersion: 'traefik.containo.us/v1alpha1',
+      kind: 'Middleware',
+      metadata: {
+        name: `strip-${prefix.replace('/', '')}-prefix`,
+      },
+      spec: {
+        stripPrefix: {
+          prefixes: [`/${prefix}`],
+        },
+      },
+    });
+}
 }
