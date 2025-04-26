@@ -9,11 +9,31 @@ export class DevopsChart extends cdk8s.Chart {
       labels: { env: scope.env },
     });
 
-   /*  new cdk8s.Helm(scope, 'mongo', {
-      chart: 'oci://registry-1.docker.io/bitnamicharts/mongodb-sharded',
-      version: '9.2.3',
+    new cdk8s.Helm(this, 'redis', {
+      chart: 'oci://registry-1.docker.io/bitnamicharts/redis',
+      version: '20.13.2',
       namespace: scope.env,
-    }) */
+      values: {
+        auth: {
+          password: 'password'
+        },
+      },
+    })
+
+    new cdk8s.Helm(this, 'mongo', {
+      chart: 'oci://registry-1.docker.io/bitnamicharts/mongodb',
+      version: '16.5.2',
+      namespace: scope.env,
+      values: {
+        architecture: 'replicaset',
+        auth: {
+          rootUser: 'user',
+          rootPassword: 'password'
+        },
+        replicaCount: 3,
+        replicaSetName: 'rs0',
+      },
+    })
 
     const image = new LocalDockerImage(this, 'docker', {
       name: 'kevinand11/k8s-demo-app',
