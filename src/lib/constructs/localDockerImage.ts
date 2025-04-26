@@ -1,6 +1,6 @@
+import { Construct } from 'constructs'
 import { Platform } from '../common'
 import { exec } from '../common/utils'
-import { K8sApp } from './k8sApp'
 import { K8sConstruct } from './k8sContruct'
 
 export interface LocalDockerImageProps {
@@ -17,7 +17,7 @@ export interface LocalDockerImageProps {
 }
 
 export class LocalDockerImage extends K8sConstruct {
-	constructor (scope: K8sApp, id: string, private readonly props: LocalDockerImageProps) {
+	constructor (scope: Construct, id: string, private readonly props: LocalDockerImageProps) {
 		super(scope, id)
 	}
 

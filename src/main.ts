@@ -1,9 +1,9 @@
 import path from 'node:path'
 import { cdk8s, K8sApp, kplus, LocalDockerImage, Platform } from './lib'
 
-export class MyChart extends cdk8s.Chart {
-  constructor(scope: K8sApp, id: string) {
-    super(scope, id, {
+export class DevopsChart extends cdk8s.Chart {
+  constructor(scope: K8sApp) {
+    super(scope, 'devops', {
       disableResourceNameHashes: true,
       namespace: scope.env,
       labels: { env: scope.env },
@@ -15,7 +15,7 @@ export class MyChart extends cdk8s.Chart {
       namespace: scope.env,
     }) */
 
-    const image = new LocalDockerImage(scope, 'docker', {
+    const image = new LocalDockerImage(this, 'docker', {
       name: 'kevinand11/k8s-demo-app',
       build: {
         context: path.resolve(__dirname, 'app'),
@@ -24,7 +24,13 @@ export class MyChart extends cdk8s.Chart {
     })
 
     new kplus.Deployment(this, 'App', {
-      containers: [{ image: image.nameTag }],
+      containers: [{
+        image: image.nameTag,
+        securityContext: {
+          ensureNonRoot: false,
+          user: 0
+        }
+      }],
     });
   }
 }
@@ -34,5 +40,5 @@ const app = new K8sApp({
   localDockerImages: { synth: false }
 });
 
-new MyChart(app, 'devops');
+new DevopsChart(app);
 app.synth();
