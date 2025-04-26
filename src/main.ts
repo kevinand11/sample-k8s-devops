@@ -1,4 +1,5 @@
-import { cdk8s, kplus, K8sApp, LocalDockerImage } from './lib'
+import path from 'node:path'
+import { cdk8s, K8sApp, kplus, LocalDockerImage, Platform } from './lib'
 
 export class MyChart extends cdk8s.Chart {
   constructor(scope: K8sApp, id: string) {
@@ -8,15 +9,22 @@ export class MyChart extends cdk8s.Chart {
       labels: { env: scope.env },
     });
 
-    new LocalDockerImage(scope, 'docker', {
-      name: 'nginx',
+   /*  new cdk8s.Helm(scope, 'mongo', {
+      chart: 'oci://registry-1.docker.io/bitnamicharts/mongodb-sharded',
+      version: '9.2.3',
+      namespace: scope.env,
+    }) */
+
+    const image = new LocalDockerImage(scope, 'docker', {
+      name: 'kevinand11/k8s-demo-app',
       build: {
-        context: '.'
+        context: path.resolve(__dirname, 'app'),
+        platforms: [Platform.LINUX_AMD64]
       }
     })
 
     new kplus.Deployment(this, 'App', {
-      containers: [{ image: 'nginx' }],
+      containers: [{ image: image.nameTag }],
     });
   }
 }

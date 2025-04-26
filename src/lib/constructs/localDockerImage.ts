@@ -1,7 +1,7 @@
 import { Platform } from '../common'
 import { exec } from '../common/utils'
-import { K8sConstruct } from './k8sContruct'
 import { K8sApp } from './k8sApp'
+import { K8sConstruct } from './k8sContruct'
 
 export interface LocalDockerImageProps {
 	name: string
@@ -29,6 +29,10 @@ export class LocalDockerImage extends K8sConstruct {
 		return this.props.tag ?? 'latest'
 	}
 
+	get nameTag () {
+		return `${this.name}:${this.tag}`
+	}
+
 	async build () {
 		const build = this.props.build
 		const args: string[] = []
@@ -48,7 +52,7 @@ export class LocalDockerImage extends K8sConstruct {
 	}
 
 	async deploy () {
-		const args = ['image', 'push', `${this.name}:${this.tag}`]
+		const args = ['image', 'push', this.nameTag]
 		await exec('docker', args)
 	}
 
