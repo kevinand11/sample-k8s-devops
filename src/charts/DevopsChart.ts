@@ -28,7 +28,7 @@ export class DevopsChart extends cdk8s.Chart {
     this.createIngressController()
     this.createMongo()
     this.createRedis()
-    // this.createKafka()
+    this.createKafka()
   }
 
   createIngressController () {
@@ -75,10 +75,10 @@ export class DevopsChart extends cdk8s.Chart {
       },
     })
 
-    const mongoService = mongo.apiObjects.find((o) => cdk8s.ApiObject.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
-    const mongoStatefulSet = mongo.apiObjects.find((o) => cdk8s.ApiObject.isConstruct(o) && o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
+    const service = mongo.apiObjects.find((o) => cdk8s.ApiObject.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
+    const statefulSet = mongo.apiObjects.find((o) => cdk8s.ApiObject.isConstruct(o) && o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
 
-    const hosts = new Array(replicas).fill(0).map((_, i) => `${mongoStatefulSet.name}-${i}.${mongoService.name}.${this.scope.namespace}.svc.cluster.local`)
+    const hosts = new Array(replicas).fill(0).map((_, i) => `${statefulSet.name}-${i}.${service.name}.${this.scope.namespace}.svc.cluster.local`)
     const url = `mongo://${auth.rootUser}:${auth.rootPassword}@${hosts.join(',')}:27017/replicaSet=${replicaSetName}`
 
     const ingress= new kplus.Deployment(this, 'mongo-express', {
@@ -88,7 +88,7 @@ export class DevopsChart extends cdk8s.Chart {
         portNumber: 8081,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
-          ME_CONFIG_MONGODB_SERVER: kplus.EnvValue.fromValue(mongoService.name),
+          ME_CONFIG_MONGODB_SERVER: kplus.EnvValue.fromValue(service.name),
           ME_CONFIG_MONGODB_ADMINUSERNAME: kplus.EnvValue.fromValue(auth.rootUser),
           ME_CONFIG_MONGODB_ADMINPASSWORD: kplus.EnvValue.fromValue(auth.rootPassword),
         }
@@ -125,8 +125,8 @@ export class DevopsChart extends cdk8s.Chart {
       },
     })
 
-    const masterRedisService = redis.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.name.includes('master'))!
-    const redisHost = `${masterRedisService.name}.${this.scope.namespace}.svc.cluster.local`
+    const service = redis.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'master')!
+    const redisHost = `${service.name}.${this.scope.namespace}.svc.cluster.local`
 
     const redisUrl = `redis://${redisHost}`
 
@@ -161,31 +161,44 @@ export class DevopsChart extends cdk8s.Chart {
   }
 
   createKafka () {
-    new K8sHelm(this, 'kafka', {
+    const kafka = new K8sHelm(this, 'kafka', {
       chart: 'oci://registry-1.docker.io/bitnamicharts/kafka',
       version: '32.2.1',
       values: {
-        replicaCount: 2,
+        broker: {
+          replicaCount: 3,
+        }
       },
     })
 
-    const hosts = `kafka.${this.scope.namespace}.svc.cluster.local`
+    const service = kafka.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'broker')!
+    const hosts = `${service.name}.${this.scope.namespace}.svc.cluster.local:9092`
 
-    new kplus.Deployment(this, 'kafka-ui', {
+    const ingress = new kplus.Deployment(this, 'kafka-ui', {
       replicas: 1,
       containers: [{
-        image: 'provectuslabs/kafka-ui:master',
+        image: 'provectuslabs/kafka-ui:latest',
         portNumber: 8080,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
           KAFKA_CLUSTERS_0_NAME: kplus.EnvValue.fromValue('local'),
           KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kplus.EnvValue.fromValue(hosts),
-          KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: kplus.EnvValue.fromValue('PLAINTEXT'),
         }
       }]
-    }).exposeViaService({
-      serviceType: kplus.ServiceType.NODE_PORT,
-      ports: [{ port: 30003, targetPort: 8080, nodePort: 30003 }]
+    }).exposeViaIngress('/')
+
+    const stripPrefixMiddleware = new TraefikMiddleware(this, 'kafka-ui-strip-prefix-middleware', {
+      stripPrefix: {
+        prefixes: ['/kafka-ui']
+      }
+    })
+
+    new TraefikAnnotations(this, 'kafka-ui-traefik-annotations', {
+      ingress,
+      annotations: {
+        'router.entryPoints': 'web',
+        // 'router.middlewares': stripPrefixMiddleware.middlewareName,
+      }
     })
   }
 }
