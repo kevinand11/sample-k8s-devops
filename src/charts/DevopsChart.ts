@@ -1,6 +1,15 @@
 import path from 'node:path'
 import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikAnnotations, TraefikMiddleware } from '../lib'
 
+type KafkaValues = {
+  host: string
+  auth: {
+    securityProtocol: string
+    saslMechanism: string
+    saslJaasConfig: string
+  }
+}
+
 export class DevopsChart extends cdk8s.Chart {
   constructor(private readonly scope: K8sApp) {
     super(scope, 'devops', {
@@ -178,7 +187,18 @@ export class DevopsChart extends cdk8s.Chart {
     })
 
     const service = kafka.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'kafka')!
-    const hosts = `${service.name}.${this.scope.namespace}.svc.cluster.local:9092`
+    const host = `${service.name}.${this.scope.namespace}.svc.cluster.local:9092`
+
+    const values: KafkaValues = {
+      host,
+      auth: {
+        securityProtocol: 'SASL_PLAINTEXT',
+        saslMechanism: 'PLAIN',
+        saslJaasConfig: `org.apache.kafka.common.security.plain.PlainLoginModule required username="${user}" password="${password}";`
+      }
+    }
+
+    const { url: debeziumUrl } = this.createDebezium(values)
 
     const ingress = new kplus.Deployment(this, 'kafka-ui', {
       replicas: 1,
@@ -188,10 +208,12 @@ export class DevopsChart extends cdk8s.Chart {
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
           KAFKA_CLUSTERS_0_NAME: kplus.EnvValue.fromValue('local'),
-          KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kplus.EnvValue.fromValue(hosts),
-          KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: kplus.EnvValue.fromValue('SASL_PLAINTEXT'),
-          KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: kplus.EnvValue.fromValue('PLAIN'),
-          KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: kplus.EnvValue.fromValue(`org.apache.kafka.common.security.plain.PlainLoginModule required username="${user}" password="${password}";`),
+          KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kplus.EnvValue.fromValue(values.host),
+          KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: kplus.EnvValue.fromValue(values.auth.securityProtocol),
+          KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: kplus.EnvValue.fromValue(values.auth.saslMechanism),
+          KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: kplus.EnvValue.fromValue(values.auth.saslJaasConfig),
+          KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: kplus.EnvValue.fromValue('debezium'),
+          KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: kplus.EnvValue.fromValue(debeziumUrl),
           DYNAMIC_CONFIG_ENABLED: kplus.EnvValue.fromValue('true'),
         }
       }]
@@ -207,8 +229,39 @@ export class DevopsChart extends cdk8s.Chart {
       ingress,
       annotations: {
         'router.entryPoints': 'web',
-        // 'router.middlewares': stripPrefixMiddleware.middlewareName,
+        'router.middlewares': stripPrefixMiddleware.middlewareName,
       }
     })
+
+    return { values, debeziumUrl }
+  }
+
+  createDebezium (values: KafkaValues) {
+    const service = new kplus.Deployment(this, 'debezium', {
+      replicas: 1,
+      containers: [{
+        image: 'debezium/connect:2.7.3.Final',
+        portNumber: 8083,
+        securityContext: { ensureNonRoot: false, user: 0 },
+        envVariables: {
+          GROUP_ID: kplus.EnvValue.fromValue(`${this.namespace}-${this.node.id}`),
+          BOOTSTRAP_SERVERS: kplus.EnvValue.fromValue(values.host),
+          CONNECT_SECURITY_PROTOCOL: kplus.EnvValue.fromValue(values.auth.securityProtocol),
+          CONNECT_SASL_MECHANISM: kplus.EnvValue.fromValue(values.auth.saslMechanism),
+          CONNECT_SASL_JAAS_CONFIG: kplus.EnvValue.fromValue(values.auth.saslJaasConfig),
+
+          CONFIG_STORAGE_TOPIC: kplus.EnvValue.fromValue('debezium.connect.config'),
+          OFFSET_STORAGE_TOPIC: kplus.EnvValue.fromValue('debezium.connect.offset'),
+          STATUS_STORAGE_TOPIC: kplus.EnvValue.fromValue('debezium.connect.status'),
+          CONFIG_STORAGE_REPLICATION_FACTOR: kplus.EnvValue.fromValue('3'),
+          OFFSET_STORAGE_REPLICATION_FACTOR: kplus.EnvValue.fromValue('3'),
+          STATUS_STORAGE_REPLICATION_FACTOR: kplus.EnvValue.fromValue('3'),
+        }
+      }]
+    }).exposeViaService()
+
+    const url = `http://${service.name}:${service.port}`
+
+    return { url }
   }
 }
