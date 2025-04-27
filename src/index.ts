@@ -1,6 +1,6 @@
+import { K8sApp, K8sCli } from '@devops/k8s-cdk'
 import { DevopsChart } from './charts/DevopsChart'
 import { InfraChart } from './charts/InfraChart'
-import { K8sCli, K8sApp } from './lib'
 
 const infraApp = new K8sApp({
   env: 'infra',

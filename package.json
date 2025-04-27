@@ -1,27 +1,13 @@
 {
-  "name": "devops",
+  "name": "@devops/root",
   "version": "1.0.0",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "license": "Apache-2.0",
-  "private": true,
   "scripts": {
-    "import": "cdk8s import",
-    "k8s": "tsx src/index.ts",
-    "upgrade": "pnpm i cdk8s@latest cdk8s-cli@latest",
-    "upgrade:next": "pnpm i cdk8s@next cdk8s-cli@next"
+    "k8s": "tsx src/index.ts"
   },
   "dependencies": {
-    "cdk8s": "^2.69.64",
-    "cdk8s-plus-32": "^2.0.12",
-    "commander": "^13.1.0",
-    "constructs": "^10.4.2",
-    "zx": "^8.5.3"
+    "@devops/k8s-cdk": "workspace:^"
   },
   "devDependencies": {
-    "@types/node": "^22.15.2",
-    "cdk8s-cli": "^2.200.52",
-    "tsx": "^4.19.3",
-    "typescript": "^4.9.5"
+    "@types/node": "^22.15.2"
   }
 }

@@ -1,5 +1,5 @@
+import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikAnnotations, TraefikMiddleware } from '@devops/k8s-cdk'
 import path from 'node:path'
-import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikAnnotations, TraefikMiddleware } from '../lib'
 
 type KafkaValues = {
   host: string

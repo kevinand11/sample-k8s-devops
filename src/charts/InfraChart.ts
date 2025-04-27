@@ -1,5 +1,4 @@
-import { Certificate, Issuer } from '../../imports/cert-manager.io'
-import { cdk8s, K8sApp, K8sHelm, kplus } from '../lib'
+import { cdk8s, Certificate, Issuer, K8sApp, K8sHelm, kplus } from '@devops/k8s-cdk'
 
 type InfraChartProps = {
   domain: {
