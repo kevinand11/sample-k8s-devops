@@ -1,5 +1,4 @@
 import { App, AppProps } from 'cdk8s'
-import { createCli } from '../cli'
 import { LocalDockerImage } from './localDockerImage'
 
 export interface K8sAppProps {
@@ -36,9 +35,5 @@ export class K8sApp extends App {
 		}
 
 		return super.synthYaml()
-	}
-
-	async process () {
-		await createCli(this)
 	}
 }
