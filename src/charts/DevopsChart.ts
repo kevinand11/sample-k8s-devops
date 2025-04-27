@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { Certificate, Issuer } from '../../imports/cert-manager.io'
 import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikAnnotations, TraefikMiddleware } from '../lib'
 
 type KafkaValues = {
@@ -10,8 +11,16 @@ type KafkaValues = {
   }
 }
 
+type DevopsChartProps = {
+  domain: {
+    name: string;
+    wildcard?: boolean;
+    certEmail: string;
+  }
+}
+
 export class DevopsChart extends cdk8s.Chart {
-  constructor(private readonly scope: K8sApp) {
+  constructor(private readonly scope: K8sApp, private readonly props: DevopsChartProps) {
     super(scope, 'devops', {
       disableResourceNameHashes: true,
       namespace: scope.namespace,
@@ -64,21 +73,47 @@ export class DevopsChart extends cdk8s.Chart {
       },
     })
 
-    /* new ApiObject(this, 'cert-manager-issuer', {
-      apiVersion: 'cert.manager.io/v1',
-      kind: 'Issuer',
+    const certificateSecret = new kplus.Secret(this, 'certificate-secret')
+
+    const { name: domainName, wildcard = false, certEmail } = this.props.domain
+    const issuer = new Issuer(this, 'cert-manager-issuer', {
       spec: {
         acme: {
-          email: 'kevinfizu@gmail.com',
+          email: certEmail,
           server: 'https://acme-staging-v02.api.letsencrypt.org/directory', // https://acme-v02.api.letsencrypt.org/directory for prod
-          solvers: {
-            dns01: {
-              cloudflare: {}
+          privateKeySecretRef: {
+            name: certificateSecret.name,
+            key: 'tls.key'
+          },
+          solvers: [
+            {
+              // TODO: complete impl
+              dns01: {
+                webhook: {
+                  solverName: 'godaddy',
+                  groupName: `acme.${domainName}`,
+                }
+              },
+              selector: {
+                dnsZones: [domainName]
+              }
             }
-          }
+          ]
         }
       }
-    }) */
+    })
+
+    const certificate = new Certificate(this, 'cert-manager-certificate', {
+      spec: {
+        secretName: `${this.node.id}-cert-manager-certifcate-secret`,
+        issuerRef: {
+          name: issuer.name,
+          kind: issuer.kind,
+        },
+        commonName: wildcard ? `*.${domainName}` : domainName,
+        dnsNames: [domainName, wildcard ? `*.${domainName}` : ''].filter(Boolean)
+      }
+    })
 
     new K8sHelm(this, 'traefik-controller', {
       chart: 'oci://ghcr.io/traefik/helm/traefik',

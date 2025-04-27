@@ -2,3 +2,5 @@ language: typescript
 app: npx tsx src/index.ts
 imports:
   - k8s
+  - https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+  - https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.crds.yaml

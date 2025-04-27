@@ -6,6 +6,12 @@ export const app = new K8sApp({
   namespace: 'dev'
 });
 
-new DevopsChart(app);
+new DevopsChart(app, {
+  domain: {
+    name: 'stranerd.com',
+    certEmail: 'kevinfizu@gmail.com',
+    wildcard: true,
+  }
+});
 
 app.process()
