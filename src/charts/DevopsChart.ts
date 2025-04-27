@@ -1,5 +1,4 @@
 import path from 'node:path'
-import { Certificate, Issuer } from '../../imports/cert-manager.io'
 import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikAnnotations, TraefikMiddleware } from '../lib'
 
 type KafkaValues = {
@@ -12,11 +11,7 @@ type KafkaValues = {
 }
 
 type DevopsChartProps = {
-  domain: {
-    name: string;
-    wildcard?: boolean;
-    certEmail: string;
-  }
+  certSecretName?: string
 }
 
 export class DevopsChart extends cdk8s.Chart {
@@ -52,67 +47,6 @@ export class DevopsChart extends cdk8s.Chart {
   createIngressController () {
     new cdk8s.Include(this, 'traefik-crds', {
       url: 'https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml',
-    })
-
-    new K8sHelm(this, 'cert-manager', {
-      chart: 'oci://registry-1.docker.io/bitnamicharts/cert-manager',
-      version: '1.4.14',
-      values: {
-        installCRDs: true,
-        controller: {
-          extraArgs: [
-            '--dns01-recursive-nameservers-only',
-            '--dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53',
-          ],
-          dnsPolicy: 'None',
-          dnsConfig: {
-            nameservers: ['1.1.1.1', '9.9.9.9']
-          }
-        },
-        rbac: { create: false }
-      },
-    })
-
-    const certificateSecret = new kplus.Secret(this, 'certificate-secret')
-
-    const { name: domainName, wildcard = false, certEmail } = this.props.domain
-    const issuer = new Issuer(this, 'cert-manager-issuer', {
-      spec: {
-        acme: {
-          email: certEmail,
-          server: 'https://acme-staging-v02.api.letsencrypt.org/directory', // https://acme-v02.api.letsencrypt.org/directory for prod
-          privateKeySecretRef: {
-            name: certificateSecret.name,
-            key: 'tls.key'
-          },
-          solvers: [
-            {
-              // TODO: complete impl
-              dns01: {
-                webhook: {
-                  solverName: 'godaddy',
-                  groupName: `acme.${domainName}`,
-                }
-              },
-              selector: {
-                dnsZones: [domainName]
-              }
-            }
-          ]
-        }
-      }
-    })
-
-    const certificate = new Certificate(this, 'cert-manager-certificate', {
-      spec: {
-        secretName: `${this.node.id}-cert-manager-certifcate-secret`,
-        issuerRef: {
-          name: issuer.name,
-          kind: issuer.kind,
-        },
-        commonName: wildcard ? `*.${domainName}` : domainName,
-        dnsNames: [domainName, wildcard ? `*.${domainName}` : ''].filter(Boolean)
-      }
     })
 
     new K8sHelm(this, 'traefik-controller', {
