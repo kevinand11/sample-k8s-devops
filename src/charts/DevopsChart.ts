@@ -67,6 +67,7 @@ export class DevopsChart extends K8sChart {
           }
         },
       },
+      installCRDs: true,
     })
   }
 
