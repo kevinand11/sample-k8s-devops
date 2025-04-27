@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikStripPrefixMiddleware } from '../lib'
+import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikAnnotations, TraefikMiddleware } from '../lib'
 
 export class DevopsChart extends cdk8s.Chart {
   constructor(private readonly scope: K8sApp) {
@@ -32,9 +32,10 @@ export class DevopsChart extends cdk8s.Chart {
   }
 
   createIngressController () {
-    // new cdk8s.Include(this, 'traefik-crds', {
-    //   url: 'https://github.com/traefik/traefik-helm-chart/releases/download/v35.1.0/traefik.yaml'
-    // })
+    new cdk8s.Include(this, 'traefik-crds', {
+      url: 'https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml',
+      // url: 'https://github.com/traefik/traefik-helm-chart/releases/download/v35.1.0/traefik.yaml'
+    })
 
     new K8sHelm(this, 'traefik-controller', {
       chart: 'oci://ghcr.io/traefik/helm/traefik',
@@ -75,9 +76,7 @@ export class DevopsChart extends cdk8s.Chart {
     const hosts = new Array(replicas).fill(0).map((_, i) => `${mongoStatefulSet.name}-${i}.${mongoService.name}.${this.scope.namespace}.svc.cluster.local`)
     const url = `mongo://${auth.rootUser}:${auth.rootPassword}@${hosts.join(',')}:27017/replicaSet=${replicaSetName}`
 
-    const stripPrefixMiddleware = new TraefikStripPrefixMiddleware(this, 'mongo-express-prefix-middleware', { prefixes: ['mongo-express'] })
-
-    const ingres= new kplus.Deployment(this, 'mongo-express', {
+    const ingress= new kplus.Deployment(this, 'mongo-express', {
       replicas: 1,
       containers: [{
         image: 'mongo-express:latest',
@@ -91,8 +90,19 @@ export class DevopsChart extends cdk8s.Chart {
       }]
     }).exposeViaIngress('/mongo-express')
 
-    ingres.metadata.addAnnotation('traefik.ingress.kubernetes.io/router.middlewares', stripPrefixMiddleware.middlewareName)
-    ingres.metadata.addAnnotation('traefik.ingress.kubernetes.io/router.entryPoints', 'web')
+    const stripPrefixMiddleware = new TraefikMiddleware(this, 'mongo-express-strip-prefix-middleware', {
+      stripPrefix: {
+        prefixes: ['/mongo-express']
+      }
+    })
+
+    new TraefikAnnotations(this, 'mongo-express-traefik-annotations', {
+      ingress,
+      annotations: {
+        'router.entryPoints': 'web',
+        'router.middlewares': stripPrefixMiddleware.middlewareName,
+      }
+    })
 
     return { url }
   }
