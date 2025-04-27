@@ -1,3 +1,4 @@
+import { access, constants, mkdir } from 'node:fs/promises'
 import { $ } from 'zx'
 
 export async function exec (command: string, injectInput?: string, allowNonZeroCodes?: boolean) {
@@ -20,4 +21,12 @@ export async function exec (command: string, injectInput?: string, allowNonZeroC
 
 		process.on('error', (e) => rej(e))
 	})
+}
+
+export async function createFolderIfNotExists(folderPath: string) {
+  try {
+    await access(folderPath, constants.F_OK);
+  } catch (err) {
+    await mkdir(folderPath, { recursive: true });
+  }
 }

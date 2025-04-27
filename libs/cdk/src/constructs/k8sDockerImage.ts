@@ -1,7 +1,7 @@
-import { Construct } from 'constructs'
-import { Platform } from '../common'
 import { exec } from '../common/utils'
-import { K8sConstruct } from './k8sContruct'
+import { K8sChart } from './k8sChart'
+import { K8sConstruct } from './k8sConstruct'
+import { Platform } from './k8sPlatform'
 
 export interface LocalDockerImageProps {
 	name: string
@@ -16,8 +16,8 @@ export interface LocalDockerImageProps {
 	}
 }
 
-export class LocalDockerImage extends K8sConstruct {
-	constructor (scope: Construct, id: string, private readonly props: LocalDockerImageProps) {
+export class K8sDockerImage extends K8sConstruct {
+	constructor (scope: K8sChart, id: string, private readonly props: LocalDockerImageProps) {
 		super(scope, id)
 	}
 
@@ -33,7 +33,7 @@ export class LocalDockerImage extends K8sConstruct {
 		return `${this.name}:${this.tag}`
 	}
 
-	async build () {
+	async #build () {
 		const build = this.props.build
 		const args: string[] = []
 		const path = typeof build === 'object' ? build.context : build
@@ -51,12 +51,12 @@ export class LocalDockerImage extends K8sConstruct {
 		await exec(['docker', 'buildx', 'build', ...args, path].join(' '))
 	}
 
-	async deploy () {
+	async #push () {
 		await exec(`docker image push ${this.nameTag}`)
 	}
 
-	async synth () {
-		await this.build()
-		await this.deploy()
+	async deploy () {
+		await this.#build()
+		await this.#push()
 	}
 }

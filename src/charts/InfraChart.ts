@@ -1,6 +1,6 @@
-import { cdk8s, Certificate, CertManagerHelm, Issuer, K8sApp, kplus } from '@devops/k8s-cdk'
+import { Certificate, CertManagerHelm, Issuer, K8sChart, K8sChartProps, kplus } from '@devops/k8s-cdk'
 
-type InfraChartProps = {
+interface InfraChartProps extends K8sChartProps {
   domain: {
     name: string;
     wildcard?: boolean;
@@ -8,15 +8,11 @@ type InfraChartProps = {
   }
 }
 
-export class InfraChart extends cdk8s.Chart {
+export class InfraChart extends K8sChart {
   certSecretName?: string
 
-  constructor(private readonly scope: K8sApp, private readonly props: InfraChartProps) {
-    super(scope, 'infra', {
-      disableResourceNameHashes: true,
-      namespace: scope.namespace,
-      labels: { env: scope.env },
-    });
+  constructor(private readonly props: InfraChartProps) {
+    super('infra', props);
 
     const { certSecretName } = this.createCertificate()
     this.certSecretName = certSecretName

@@ -1,18 +1,9 @@
-import { K8sApp, K8sCli } from '@devops/k8s-cdk'
+import { K8sApp } from '@devops/k8s-cdk'
 import { DevopsChart } from './charts/DevopsChart'
 import { InfraChart } from './charts/InfraChart'
 
-const infraApp = new K8sApp({
-  env: 'infra',
+const infraChart = new InfraChart({
   namespace: 'infra',
-})
-
-const devopsApp = new K8sApp({
-  env: 'dev',
-  namespace: 'dev'
-});
-
-const infraChart = new InfraChart(infraApp, {
   domain: {
     name: 'stranerd.com',
     certEmail: 'kevinfizu@gmail.com',
@@ -20,8 +11,10 @@ const infraChart = new InfraChart(infraApp, {
   }
 })
 
-new DevopsChart(devopsApp, {
+const devopsChart = new DevopsChart({
+  namespace: 'dev',
   certSecretName: infraChart.certSecretName
-});
+})
 
-new K8sCli({ infra: infraApp, devops: devopsApp }).process()
+
+new K8sApp([infraChart, devopsChart]).process()

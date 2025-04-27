@@ -2,6 +2,7 @@ import { ApiObject, Include } from 'cdk8s'
 import { Resource } from 'cdk8s-plus-32'
 import { Construct } from 'constructs'
 import { K8sHelm, K8sHelmProps } from './k8sHelm'
+import { K8sChart } from './k8sChart'
 
 export interface TraefikAnnotationsProp {
   ingress: ApiObject | Resource
@@ -48,7 +49,7 @@ export interface TraefikHelmProps extends Omit<K8sHelmProps, 'chart' | 'version'
 export class TraefikHelm extends K8sHelm {
   private static registeredCRDs = false
 
-  constructor (scope: Construct, id: string, { installCRDs, ...rest }: TraefikHelmProps) {
+  constructor (scope: K8sChart, id: string, { installCRDs, ...rest }: TraefikHelmProps) {
     super(scope, id, {
       ...rest,
       chart: 'oci://ghcr.io/traefik/helm/traefik',

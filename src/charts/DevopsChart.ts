@@ -1,4 +1,4 @@
-import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikAnnotations, TraefikHelm, TraefikMiddleware } from '@devops/k8s-cdk'
+import { ApiObject, K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, kplus, TraefikAnnotations, TraefikHelm, TraefikMiddleware } from '@devops/k8s-cdk'
 import path from 'node:path'
 
 type KafkaValues = {
@@ -10,23 +10,19 @@ type KafkaValues = {
   }
 }
 
-type DevopsChartProps = {
+interface DevopsChartProps extends K8sChartProps {
   certSecretName?: string
 }
 
-export class DevopsChart extends cdk8s.Chart {
-  constructor(private readonly scope: K8sApp, private readonly props: DevopsChartProps) {
-    super(scope, 'devops', {
-      disableResourceNameHashes: true,
-      namespace: scope.namespace,
-      labels: { env: scope.env },
-    });
+export class DevopsChart extends K8sChart {
+  constructor(private readonly props: DevopsChartProps) {
+    super('devops', props);
 
-    const image = new LocalDockerImage(this, 'docker', {
+    const image = new K8sDockerImage(this, 'docker', {
       name: 'kevinand11/k8s-demo-app',
       build: {
         context: path.resolve(__dirname, '../app'),
-        platforms: [Platform.LINUX_AMD64]
+        platforms: [K8sDockerPlatform.LINUX_AMD64]
       }
     })
 
@@ -91,10 +87,10 @@ export class DevopsChart extends cdk8s.Chart {
       },
     })
 
-    const service = mongo.apiObjects.find((o) => cdk8s.ApiObject.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
-    const statefulSet = mongo.apiObjects.find((o) => cdk8s.ApiObject.isConstruct(o) && o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
+    const service = mongo.apiObjects.find((o) => ApiObject.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
+    const statefulSet = mongo.apiObjects.find((o) => ApiObject.isConstruct(o) && o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
 
-    const hosts = new Array(replicas).fill(0).map((_, i) => `${statefulSet.name}-${i}.${service.name}.${this.scope.namespace}.svc.cluster.local`)
+    const hosts = new Array(replicas).fill(0).map((_, i) => `${statefulSet.name}-${i}.${service.name}.${this.namespace}.svc.cluster.local`)
     const url = `mongo://${auth.rootUser}:${auth.rootPassword}@${hosts.join(',')}:27017/replicaSet=${replicaSetName}`
 
     const ingress= new kplus.Deployment(this, 'mongo-express', {
@@ -141,7 +137,7 @@ export class DevopsChart extends cdk8s.Chart {
     })
 
     const service = redis.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'master')!
-    const redisHost = `${service.name}.${this.scope.namespace}.svc.cluster.local`
+    const redisHost = `${service.name}.${this.namespace}.svc.cluster.local`
 
     const redisUrl = `redis://${redisHost}`
 
@@ -192,7 +188,7 @@ export class DevopsChart extends cdk8s.Chart {
     })
 
     const service = kafka.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'kafka')!
-    const host = `${service.name}.${this.scope.namespace}.svc.cluster.local:9092`
+    const host = `${service.name}.${this.namespace}.svc.cluster.local:9092`
 
     const values: KafkaValues = {
       host,
