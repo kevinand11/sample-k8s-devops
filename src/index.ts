@@ -1,6 +1,6 @@
 import { DevopsChart } from './charts/DevopsChart'
 import { InfraChart } from './charts/InfraChart'
-import { K8sApp } from './lib'
+import { K8sCli, K8sApp } from './lib'
 
 const infraApp = new K8sApp({
   env: 'infra',
@@ -24,8 +24,4 @@ new DevopsChart(devopsApp, {
   certSecretName: infraChart.certSecretName
 });
 
-
-(async () => {
-  await infraApp.process()
-  await devopsApp.process()
-})()
+new K8sCli({ infra: infraApp, devops: devopsApp }).process()

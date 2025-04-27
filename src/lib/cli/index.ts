@@ -2,7 +2,23 @@ import { Command } from 'commander'
 import { exec } from '../common/utils'
 import { K8sApp } from '../constructs'
 
-export function createCli (app: K8sApp) {
+
+export class K8sCli {
+	constructor (private readonly apps: Record<string, K8sApp>) { }
+
+	private async _processAsync () {
+		for (const app of Object.values(this.apps)) {
+			await processApp(app)
+		}
+	}
+
+	process () {
+		this._processAsync()
+	}
+}
+
+// TODO: refactor from this approach
+async function processApp (app: K8sApp) {
 	const program = new Command()
 
 	const synthCommand = new Command()
@@ -34,7 +50,7 @@ export function createCli (app: K8sApp) {
 			await exec(`kubectl diff --prune -n=${app.namespace} -f -`, result, true)
 		})
 
-	program
+	await program
 		.addCommand(synthCommand)
 		.addCommand(applyCommand)
 		.addCommand(diffCommand)
