@@ -1,7 +1,7 @@
 import { ApiObject, Include } from 'cdk8s'
 import { Resource } from 'cdk8s-plus-32'
 import { Construct } from 'constructs'
-import { IngressRoute } from '../../imports/traefik.io'
+import { IngressRoute, Middleware, MiddlewareSpec } from '../../imports/traefik.io'
 import { K8sChart } from './k8sChart'
 import { K8sHelm, K8sHelmProps } from './k8sHelm'
 
@@ -10,34 +10,54 @@ export interface K8sTraefikAnnotationsProp {
   annotations: Record<string, string | string[]>
 }
 
-export class K8sTraefikAnnotations extends Construct {
-  constructor(scope: Construct, id: string, options: K8sTraefikAnnotationsProp) {
-    super(scope, id);
+interface Annotations {
+  entryPoints?: string[]
+  middlewares?: string[]
+}
 
-    Object.entries(options.annotations).forEach(([key, val]) => {
-      options.ingress.metadata.addAnnotation(`traefik.ingress.kubernetes.io/${key}`, Array.isArray(val) ? val.join(',') : val)
-    })
+export class K8sTraefikAnnotations {
+  private constructor (private readonly annotations: Annotations = {}) { }
+
+  static build () {
+    return new K8sTraefikAnnotations({})
+  }
+
+  private add<T extends keyof Annotations> (key: T, value: any, isArray: Exclude<Annotations[T], undefined> extends Array<any> ? true : false) {
+    const annotations = this.annotations
+    if (isArray) {
+      annotations[key] ??= []
+      annotations[key].push(value)
+    } else annotations[key] = value
+    return new K8sTraefikAnnotations(annotations)
+  }
+
+  collect<T extends ApiObject | Resource> (parent: T) {
+    const annotations = this.annotations
+    if (annotations.entryPoints?.length) parent.metadata.addAnnotation('traefik.ingress.kubernetes.io/router.entrypoints', annotations.entryPoints.join(','))
+    if (annotations.middlewares?.length) parent.metadata.addAnnotation('traefik.ingress.kubernetes.io/router.middlewares', annotations.middlewares.join(','))
+    return parent
+  }
+
+  addEntryPoint (value: 'web' | 'websecure' | string) {
+    return this.add('entryPoints', value, true)
+  }
+
+  addMiddleware (value: K8sTraefikMiddleware) {
+    return this.add('middlewares', value.nameResolution, true)
   }
 }
 
-export interface K8sTraefikMiddlewareProp {
-  stripPrefix?: {
-	  prefixes: string[]
-  }
-}
+export interface K8sTraefikMiddlewareProp extends MiddlewareSpec {}
 
-export class K8sTraefikMiddleware extends ApiObject {
-  constructor(scope: Construct, id: string, options: K8sTraefikMiddlewareProp) {
+export class K8sTraefikMiddleware extends Middleware {
+  constructor(scope: Construct, id: string, spec: K8sTraefikMiddlewareProp) {
     super(scope, id, {
-      apiVersion: 'traefik.containo.us/v1alpha1',
-      kind: 'Middleware',
-      spec: {
-        stripPrefix: options.stripPrefix,
-      },
+      metadata: {},
+      spec,
     });
   }
 
-  get middlewareName () {
+  get nameResolution () {
     return `${this.metadata.namespace}-${this.name}@kubernetescrd`
   }
 }

@@ -122,12 +122,9 @@ export class DevopsChart extends K8sChart {
       }
     })
 
-    new K8sTraefikAnnotations(this, 'mongo-express-traefik-annotations', {
-      ingress,
-      annotations: {
-        'router.middlewares': stripPrefixMiddleware.middlewareName,
-      }
-    })
+    K8sTraefikAnnotations.build()
+      .addMiddleware(stripPrefixMiddleware)
+      .collect(ingress)
 
     return { url }
   }
@@ -172,12 +169,9 @@ export class DevopsChart extends K8sChart {
       }
     })
 
-    new K8sTraefikAnnotations(this, 'redis-commander-traefik-annotations', {
-      ingress,
-      annotations: {
-        'router.middlewares': stripPrefixMiddleware.middlewareName,
-      }
-    })
+    K8sTraefikAnnotations.build()
+      .addMiddleware(stripPrefixMiddleware)
+      .collect(ingress)
 
     return { redisUrl }
   }
@@ -241,12 +235,9 @@ export class DevopsChart extends K8sChart {
       }
     })
 
-    new K8sTraefikAnnotations(this, 'kafka-ui-traefik-annotations', {
-      ingress,
-      annotations: {
-        'router.middlewares': stripPrefixMiddleware.middlewareName,
-      }
-    })
+    K8sTraefikAnnotations.build()
+      .addMiddleware(stripPrefixMiddleware)
+      .collect(ingress)
 
     return { values, debeziumUrl }
   }
