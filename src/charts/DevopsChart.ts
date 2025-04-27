@@ -1,4 +1,4 @@
-import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikAnnotations, TraefikMiddleware } from '@devops/k8s-cdk'
+import { cdk8s, K8sApp, K8sHelm, kplus, LocalDockerImage, Platform, TraefikAnnotations, TraefikHelm, TraefikMiddleware } from '@devops/k8s-cdk'
 import path from 'node:path'
 
 type KafkaValues = {
@@ -45,13 +45,7 @@ export class DevopsChart extends cdk8s.Chart {
   }
 
   createIngressController () {
-    new cdk8s.Include(this, 'traefik-crds', {
-      url: 'https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml',
-    })
-
-    new K8sHelm(this, 'traefik-controller', {
-      chart: 'oci://ghcr.io/traefik/helm/traefik',
-      version: '35.1.0',
+    new TraefikHelm(this, 'traefik-controller', {
       values: {
         ports: {
           web: {

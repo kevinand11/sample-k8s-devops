@@ -1,6 +1,7 @@
-import { ApiObject } from 'cdk8s'
+import { ApiObject, Include } from 'cdk8s'
 import { Resource } from 'cdk8s-plus-32'
 import { Construct } from 'constructs'
+import { K8sHelm, K8sHelmProps } from './k8sHelm'
 
 export interface TraefikAnnotationsProp {
   ingress: ApiObject | Resource
@@ -36,5 +37,29 @@ export class TraefikMiddleware extends ApiObject {
 
   get middlewareName () {
     return `${this.metadata.namespace}-${this.name}@kubernetescrd`
+  }
+}
+
+export interface TraefikHelmProps extends Omit<K8sHelmProps, 'chart' | 'version'> {
+  installCRDs?: boolean
+}
+
+
+export class TraefikHelm extends K8sHelm {
+  private static registeredCRDs = false
+
+  constructor (scope: Construct, id: string, { installCRDs, ...rest }: TraefikHelmProps) {
+    super(scope, id, {
+      ...rest,
+      chart: 'oci://ghcr.io/traefik/helm/traefik',
+      version: '35.1.0',
+    })
+
+    if (installCRDs && !TraefikHelm.registeredCRDs) {
+      TraefikHelm.registeredCRDs = true
+      new Include(this, `${id}-crds`, {
+        url: 'https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml',
+      })
+    }
   }
 }

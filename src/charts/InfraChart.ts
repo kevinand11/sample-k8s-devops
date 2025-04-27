@@ -1,4 +1,4 @@
-import { cdk8s, Certificate, Issuer, K8sApp, K8sHelm, kplus } from '@devops/k8s-cdk'
+import { cdk8s, Certificate, CertManagerHelm, Issuer, K8sApp, kplus } from '@devops/k8s-cdk'
 
 type InfraChartProps = {
   domain: {
@@ -23,9 +23,7 @@ export class InfraChart extends cdk8s.Chart {
   }
 
   createCertificate () {
-    new K8sHelm(this, 'cert-manager', {
-      chart: 'oci://registry-1.docker.io/bitnamicharts/cert-manager',
-      version: '1.4.14',
+    new CertManagerHelm(this, 'cert-manager', {
       values: {
         installCRDs: true,
         controller: {
