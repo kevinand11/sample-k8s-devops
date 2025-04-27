@@ -22,7 +22,7 @@ export function createCli (app: K8sApp) {
 		.action(async (options) => {
 			const result = await app.synth(!options?.skipImageBuilds)
 			if (options.fresh) await exec(`kubectl delete ns ${app.namespace} || true`)
-			await exec(`kubectl get ns ${app.namespace} || kubectl create ns ${app.namespace}`)
+			await exec(`kubectl get ns ${app.namespace} > /dev/null 2>&1 || kubectl create ns ${app.namespace}`)
 			await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${app.namespace} --applyset=${app.applySetName} -f -`, result)
 		})
 

@@ -43,8 +43,42 @@ export class DevopsChart extends cdk8s.Chart {
   createIngressController () {
     new cdk8s.Include(this, 'traefik-crds', {
       url: 'https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml',
-      // url: 'https://github.com/traefik/traefik-helm-chart/releases/download/v35.1.0/traefik.yaml'
     })
+
+    new K8sHelm(this, 'cert-manager', {
+      chart: 'oci://registry-1.docker.io/bitnamicharts/cert-manager',
+      version: '1.4.14',
+      values: {
+        installCRDs: true,
+        controller: {
+          extraArgs: [
+            '--dns01-recursive-nameservers-only',
+            '--dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53',
+          ],
+          dnsPolicy: 'None',
+          dnsConfig: {
+            nameservers: ['1.1.1.1', '9.9.9.9']
+          }
+        },
+        rbac: { create: false }
+      },
+    })
+
+    /* new ApiObject(this, 'cert-manager-issuer', {
+      apiVersion: 'cert.manager.io/v1',
+      kind: 'Issuer',
+      spec: {
+        acme: {
+          email: 'kevinfizu@gmail.com',
+          server: 'https://acme-staging-v02.api.letsencrypt.org/directory', // https://acme-v02.api.letsencrypt.org/directory for prod
+          solvers: {
+            dns01: {
+              cloudflare: {}
+            }
+          }
+        }
+      }
+    }) */
 
     new K8sHelm(this, 'traefik-controller', {
       chart: 'oci://ghcr.io/traefik/helm/traefik',
@@ -251,7 +285,7 @@ export class DevopsChart extends cdk8s.Chart {
         portNumber: 8083,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
-          GROUP_ID: kplus.EnvValue.fromValue(`${this.namespace}-${this.node.id}`),
+          GROUP_ID: kplus.EnvValue.fromValue(this.node.id),
           BOOTSTRAP_SERVERS: kplus.EnvValue.fromValue(values.host),
           CONNECT_SECURITY_PROTOCOL: kplus.EnvValue.fromValue(values.auth.securityProtocol),
           CONNECT_SASL_MECHANISM: kplus.EnvValue.fromValue(values.auth.saslMechanism),

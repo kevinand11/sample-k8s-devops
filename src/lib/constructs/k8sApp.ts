@@ -4,6 +4,7 @@ import { LocalDockerImage } from './localDockerImage'
 
 export interface K8sAppProps {
 	env: string
+	namespace: string
 	app?: AppProps
 	applySetName?: string
 }
@@ -19,7 +20,7 @@ export class K8sApp extends App {
 	}
 
 	get namespace () {
-		return this.env
+		return this.props.namespace
 	}
 
 	get applySetName () {
