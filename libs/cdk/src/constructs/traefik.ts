@@ -1,8 +1,9 @@
 import { ApiObject, Include } from 'cdk8s'
 import { Resource } from 'cdk8s-plus-32'
 import { Construct } from 'constructs'
-import { K8sHelm, K8sHelmProps } from './k8sHelm'
+import { IngressRoute } from '../../imports/traefik.io'
 import { K8sChart } from './k8sChart'
+import { K8sHelm, K8sHelmProps } from './k8sHelm'
 
 export interface TraefikAnnotationsProp {
   ingress: ApiObject | Resource
@@ -48,6 +49,7 @@ export interface TraefikHelmProps extends Omit<K8sHelmProps, 'chart' | 'version'
 
 export class TraefikHelm extends K8sHelm {
   private static registeredCRDs = false
+  readonly ingressRoute?: IngressRoute
 
   constructor (scope: K8sChart, id: string, { installCRDs, ...rest }: TraefikHelmProps) {
     super(scope, id, {
@@ -55,6 +57,11 @@ export class TraefikHelm extends K8sHelm {
       chart: 'oci://ghcr.io/traefik/helm/traefik',
       version: '35.1.0',
     })
+
+    this.ingressRoute = this.getTypedObject(
+      (o) => o.kind === 'IngressRoute',
+      IngressRoute
+    )
 
     if (installCRDs && !TraefikHelm.registeredCRDs) {
       TraefikHelm.registeredCRDs = true

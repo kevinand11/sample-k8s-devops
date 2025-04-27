@@ -1,4 +1,4 @@
-import { ApiObject, K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, kplus, TraefikAnnotations, TraefikHelm, TraefikMiddleware } from '@devops/k8s-cdk'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, kplus, KubeService, KubeStatefulSet, TraefikAnnotations, TraefikHelm, TraefikMiddleware } from '@devops/k8s-cdk'
 import path from 'node:path'
 
 type KafkaValues = {
@@ -41,7 +41,7 @@ export class DevopsChart extends K8sChart {
   }
 
   createIngressController () {
-    new TraefikHelm(this, 'traefik-controller', {
+    const traefik = new TraefikHelm(this, 'traefik-controller', {
       values: {
         ports: {
           web: {
@@ -87,8 +87,15 @@ export class DevopsChart extends K8sChart {
       },
     })
 
-    const service = mongo.apiObjects.find((o) => ApiObject.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
-    const statefulSet = mongo.apiObjects.find((o) => ApiObject.isConstruct(o) && o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb')!
+    const service = mongo.getTypedObject(
+      (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb',
+      KubeService
+    )!
+
+    const statefulSet = mongo.getTypedObject(
+      (o) => o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb',
+      KubeStatefulSet
+    )!
 
     const hosts = new Array(replicas).fill(0).map((_, i) => `${statefulSet.name}-${i}.${service.name}.${this.namespace}.svc.cluster.local`)
     const url = `mongo://${auth.rootUser}:${auth.rootPassword}@${hosts.join(',')}:27017/replicaSet=${replicaSetName}`
@@ -136,7 +143,10 @@ export class DevopsChart extends K8sChart {
       },
     })
 
-    const service = redis.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'master')!
+    const service = redis.getTypedObject(
+      (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'master',
+      KubeService
+    )!
     const redisHost = `${service.name}.${this.namespace}.svc.cluster.local`
 
     const redisUrl = `redis://${redisHost}`
@@ -187,7 +197,10 @@ export class DevopsChart extends K8sChart {
       },
     })
 
-    const service = kafka.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'kafka')!
+    const service = kafka.getTypedObject(
+      (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'kafka',
+      KubeService
+    )!
     const host = `${service.name}.${this.namespace}.svc.cluster.local:9092`
 
     const values: KafkaValues = {
