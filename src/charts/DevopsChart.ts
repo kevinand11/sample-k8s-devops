@@ -26,8 +26,8 @@ export class DevopsChart extends cdk8s.Chart {
     });
 
     this.createIngressController()
-    // this.createRedis()
     this.createMongo()
+    this.createRedis()
     // this.createKafka()
   }
 
@@ -41,10 +41,15 @@ export class DevopsChart extends cdk8s.Chart {
       chart: 'oci://ghcr.io/traefik/helm/traefik',
       version: '35.1.0',
       values: {
+        ports: {
+          traefik: {
+            expose: { default: true }, // disable for prod
+            exposedPort: 90,
+          }
+        },
         ingressRoute: {
           dashboard: {
             enabled: true,
-            entryPoints: ['web']
           }
         },
       },
@@ -125,20 +130,31 @@ export class DevopsChart extends cdk8s.Chart {
 
     const redisUrl = `redis://${redisHost}`
 
-    new kplus.Deployment(this, 'redis-commander', {
+    const ingress = new kplus.Deployment(this, 'redis-commander', {
       replicas: 1,
       containers: [{
         image: 'rediscommander/redis-commander:latest',
         portNumber: 8081,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
-          REDIS_HOSTS: kplus.EnvValue.fromValue(redisHost),
+          REDIS_HOST: kplus.EnvValue.fromValue(redisHost),
           REDIS_PASSWORD: kplus.EnvValue.fromValue(password),
         }
       }]
-    }).exposeViaService({
-      serviceType: kplus.ServiceType.NODE_PORT,
-      ports: [{ port: 30002, targetPort: 8081, nodePort: 30002 }],
+    }).exposeViaIngress('/redis-commander')
+
+    const stripPrefixMiddleware = new TraefikMiddleware(this, 'redis-commander-strip-prefix-middleware', {
+      stripPrefix: {
+        prefixes: ['/redis-commander']
+      }
+    })
+
+    new TraefikAnnotations(this, 'redis-commander-traefik-annotations', {
+      ingress,
+      annotations: {
+        'router.entryPoints': 'web',
+        'router.middlewares': stripPrefixMiddleware.middlewareName,
+      }
     })
 
     return { redisUrl }
