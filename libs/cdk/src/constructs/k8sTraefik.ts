@@ -5,13 +5,13 @@ import { IngressRoute } from '../../imports/traefik.io'
 import { K8sChart } from './k8sChart'
 import { K8sHelm, K8sHelmProps } from './k8sHelm'
 
-export interface TraefikAnnotationsProp {
+export interface K8sTraefikAnnotationsProp {
   ingress: ApiObject | Resource
   annotations: Record<string, string | string[]>
 }
 
-export class TraefikAnnotations extends Construct {
-  constructor(scope: Construct, id: string, options: TraefikAnnotationsProp) {
+export class K8sTraefikAnnotations extends Construct {
+  constructor(scope: Construct, id: string, options: K8sTraefikAnnotationsProp) {
     super(scope, id);
 
     Object.entries(options.annotations).forEach(([key, val]) => {
@@ -20,14 +20,14 @@ export class TraefikAnnotations extends Construct {
   }
 }
 
-export interface TraefikMiddlewareProp {
+export interface K8sTraefikMiddlewareProp {
   stripPrefix?: {
 	  prefixes: string[]
   }
 }
 
-export class TraefikMiddleware extends ApiObject {
-  constructor(scope: Construct, id: string, options: TraefikMiddlewareProp) {
+export class K8sTraefikMiddleware extends ApiObject {
+  constructor(scope: Construct, id: string, options: K8sTraefikMiddlewareProp) {
     super(scope, id, {
       apiVersion: 'traefik.containo.us/v1alpha1',
       kind: 'Middleware',
@@ -42,16 +42,16 @@ export class TraefikMiddleware extends ApiObject {
   }
 }
 
-export interface TraefikHelmProps extends Omit<K8sHelmProps, 'chart' | 'version'> {
+export interface K8sTraefikHelmProps extends Omit<K8sHelmProps, 'chart' | 'version'> {
   installCRDs?: boolean
 }
 
 
-export class TraefikHelm extends K8sHelm {
+export class K8sTraefikHelm extends K8sHelm {
   private static registeredCRDs = false
   readonly ingressRoute?: IngressRoute
 
-  constructor (scope: K8sChart, id: string, { installCRDs, ...rest }: TraefikHelmProps) {
+  constructor (scope: K8sChart, id: string, { installCRDs, ...rest }: K8sTraefikHelmProps) {
     super(scope, id, {
       ...rest,
       chart: 'oci://ghcr.io/traefik/helm/traefik',
@@ -63,8 +63,8 @@ export class TraefikHelm extends K8sHelm {
       IngressRoute
     )
 
-    if (installCRDs && !TraefikHelm.registeredCRDs) {
-      TraefikHelm.registeredCRDs = true
+    if (installCRDs && !K8sTraefikHelm.registeredCRDs) {
+      K8sTraefikHelm.registeredCRDs = true
       new Include(this, `${id}-crds`, {
         url: 'https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml',
       })

@@ -1,4 +1,6 @@
-import { Certificate, CertManagerHelm, Issuer, K8sChart, K8sChartProps, kplus } from '@devops/k8s-cdk'
+import { K8sCertManagerHelm, K8sChart, K8sChartProps } from '@devops/k8s-cdk'
+import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
+import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
   domain: {
@@ -19,7 +21,7 @@ export class InfraChart extends K8sChart {
   }
 
   createCertificate () {
-    new CertManagerHelm(this, 'cert-manager', {
+    new K8sCertManagerHelm(this, 'cert-manager', {
       values: {
         installCRDs: true,
         controller: {
@@ -36,7 +38,7 @@ export class InfraChart extends K8sChart {
       },
     })
 
-    const certificateSecret = new kplus.Secret(this, 'certificate-secret')
+    const certificateSecret = new Secret(this, 'certificate-secret')
 
     const { name: domainName, wildcard = false, certEmail } = this.props.domain
     const issuer = new Issuer(this, 'cert-manager-issuer', {

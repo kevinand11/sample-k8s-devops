@@ -1,4 +1,6 @@
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, kplus, KubeService, KubeStatefulSet, TraefikAnnotations, TraefikHelm, TraefikMiddleware } from '@devops/k8s-cdk'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, K8sTraefikAnnotations, K8sTraefikHelm, K8sTraefikMiddleware } from '@devops/k8s-cdk'
+import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
+import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
 import path from 'node:path'
 
 type KafkaValues = {
@@ -26,7 +28,7 @@ export class DevopsChart extends K8sChart {
       }
     })
 
-    new kplus.Deployment(this, 'App', {
+    new Deployment(this, 'App', {
       replicas: 1,
       containers: [{
         image: image.nameTag,
@@ -41,7 +43,7 @@ export class DevopsChart extends K8sChart {
   }
 
   createIngressController () {
-    const traefik = new TraefikHelm(this, 'traefik-controller', {
+    const traefik = new K8sTraefikHelm(this, 'traefik-controller', {
       values: {
         ports: {
           web: {
@@ -100,27 +102,27 @@ export class DevopsChart extends K8sChart {
     const hosts = new Array(replicas).fill(0).map((_, i) => `${statefulSet.name}-${i}.${service.name}.${this.namespace}.svc.cluster.local`)
     const url = `mongo://${auth.rootUser}:${auth.rootPassword}@${hosts.join(',')}:27017/replicaSet=${replicaSetName}`
 
-    const ingress= new kplus.Deployment(this, 'mongo-express', {
+    const ingress= new Deployment(this, 'mongo-express', {
       replicas: 1,
       containers: [{
         image: 'mongo-express:latest',
         portNumber: 8081,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
-          ME_CONFIG_MONGODB_SERVER: kplus.EnvValue.fromValue(service.name),
-          ME_CONFIG_MONGODB_ADMINUSERNAME: kplus.EnvValue.fromValue(auth.rootUser),
-          ME_CONFIG_MONGODB_ADMINPASSWORD: kplus.EnvValue.fromValue(auth.rootPassword),
+          ME_CONFIG_MONGODB_SERVER: EnvValue.fromValue(service.name),
+          ME_CONFIG_MONGODB_ADMINUSERNAME: EnvValue.fromValue(auth.rootUser),
+          ME_CONFIG_MONGODB_ADMINPASSWORD: EnvValue.fromValue(auth.rootPassword),
         }
       }]
     }).exposeViaIngress('/mongo-express')
 
-    const stripPrefixMiddleware = new TraefikMiddleware(this, 'mongo-express-strip-prefix-middleware', {
+    const stripPrefixMiddleware = new K8sTraefikMiddleware(this, 'mongo-express-strip-prefix-middleware', {
       stripPrefix: {
         prefixes: ['/mongo-express']
       }
     })
 
-    new TraefikAnnotations(this, 'mongo-express-traefik-annotations', {
+    new K8sTraefikAnnotations(this, 'mongo-express-traefik-annotations', {
       ingress,
       annotations: {
         'router.middlewares': stripPrefixMiddleware.middlewareName,
@@ -151,26 +153,26 @@ export class DevopsChart extends K8sChart {
 
     const redisUrl = `redis://${redisHost}`
 
-    const ingress = new kplus.Deployment(this, 'redis-commander', {
+    const ingress = new Deployment(this, 'redis-commander', {
       replicas: 1,
       containers: [{
         image: 'rediscommander/redis-commander:latest',
         portNumber: 8081,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
-          REDIS_HOST: kplus.EnvValue.fromValue(redisHost),
-          REDIS_PASSWORD: kplus.EnvValue.fromValue(password),
+          REDIS_HOST: EnvValue.fromValue(redisHost),
+          REDIS_PASSWORD: EnvValue.fromValue(password),
         }
       }]
     }).exposeViaIngress('/redis-commander')
 
-    const stripPrefixMiddleware = new TraefikMiddleware(this, 'redis-commander-strip-prefix-middleware', {
+    const stripPrefixMiddleware = new K8sTraefikMiddleware(this, 'redis-commander-strip-prefix-middleware', {
       stripPrefix: {
         prefixes: ['/redis-commander']
       }
     })
 
-    new TraefikAnnotations(this, 'redis-commander-traefik-annotations', {
+    new K8sTraefikAnnotations(this, 'redis-commander-traefik-annotations', {
       ingress,
       annotations: {
         'router.middlewares': stripPrefixMiddleware.middlewareName,
@@ -214,32 +216,32 @@ export class DevopsChart extends K8sChart {
 
     const { url: debeziumUrl } = this.createDebezium(values)
 
-    const ingress = new kplus.Deployment(this, 'kafka-ui', {
+    const ingress = new Deployment(this, 'kafka-ui', {
       replicas: 1,
       containers: [{
         image: 'provectuslabs/kafka-ui:latest',
         portNumber: 8080,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
-          KAFKA_CLUSTERS_0_NAME: kplus.EnvValue.fromValue('local'),
-          KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kplus.EnvValue.fromValue(values.host),
-          KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: kplus.EnvValue.fromValue(values.auth.securityProtocol),
-          KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: kplus.EnvValue.fromValue(values.auth.saslMechanism),
-          KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: kplus.EnvValue.fromValue(values.auth.saslJaasConfig),
-          KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: kplus.EnvValue.fromValue('debezium'),
-          KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: kplus.EnvValue.fromValue(debeziumUrl),
-          DYNAMIC_CONFIG_ENABLED: kplus.EnvValue.fromValue('true'),
+          KAFKA_CLUSTERS_0_NAME: EnvValue.fromValue('local'),
+          KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: EnvValue.fromValue(values.host),
+          KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: EnvValue.fromValue(values.auth.securityProtocol),
+          KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: EnvValue.fromValue(values.auth.saslMechanism),
+          KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: EnvValue.fromValue(values.auth.saslJaasConfig),
+          KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: EnvValue.fromValue('debezium'),
+          KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: EnvValue.fromValue(debeziumUrl),
+          DYNAMIC_CONFIG_ENABLED: EnvValue.fromValue('true'),
         }
       }]
     }).exposeViaIngress('/kafka-ui')
 
-    const stripPrefixMiddleware = new TraefikMiddleware(this, 'kafka-ui-strip-prefix-middleware', {
+    const stripPrefixMiddleware = new K8sTraefikMiddleware(this, 'kafka-ui-strip-prefix-middleware', {
       stripPrefix: {
         prefixes: ['/kafka-ui']
       }
     })
 
-    new TraefikAnnotations(this, 'kafka-ui-traefik-annotations', {
+    new K8sTraefikAnnotations(this, 'kafka-ui-traefik-annotations', {
       ingress,
       annotations: {
         'router.middlewares': stripPrefixMiddleware.middlewareName,
@@ -250,25 +252,25 @@ export class DevopsChart extends K8sChart {
   }
 
   createDebezium (values: KafkaValues) {
-    const service = new kplus.Deployment(this, 'debezium', {
+    const service = new Deployment(this, 'debezium', {
       replicas: 1,
       containers: [{
         image: 'debezium/connect:2.7.3.Final',
         portNumber: 8083,
         securityContext: { ensureNonRoot: false, user: 0 },
         envVariables: {
-          GROUP_ID: kplus.EnvValue.fromValue(this.node.id),
-          BOOTSTRAP_SERVERS: kplus.EnvValue.fromValue(values.host),
-          CONNECT_SECURITY_PROTOCOL: kplus.EnvValue.fromValue(values.auth.securityProtocol),
-          CONNECT_SASL_MECHANISM: kplus.EnvValue.fromValue(values.auth.saslMechanism),
-          CONNECT_SASL_JAAS_CONFIG: kplus.EnvValue.fromValue(values.auth.saslJaasConfig),
+          GROUP_ID: EnvValue.fromValue(this.node.id),
+          BOOTSTRAP_SERVERS: EnvValue.fromValue(values.host),
+          CONNECT_SECURITY_PROTOCOL: EnvValue.fromValue(values.auth.securityProtocol),
+          CONNECT_SASL_MECHANISM: EnvValue.fromValue(values.auth.saslMechanism),
+          CONNECT_SASL_JAAS_CONFIG: EnvValue.fromValue(values.auth.saslJaasConfig),
 
-          CONFIG_STORAGE_TOPIC: kplus.EnvValue.fromValue('debezium.connect.config'),
-          OFFSET_STORAGE_TOPIC: kplus.EnvValue.fromValue('debezium.connect.offset'),
-          STATUS_STORAGE_TOPIC: kplus.EnvValue.fromValue('debezium.connect.status'),
-          CONFIG_STORAGE_REPLICATION_FACTOR: kplus.EnvValue.fromValue('3'),
-          OFFSET_STORAGE_REPLICATION_FACTOR: kplus.EnvValue.fromValue('3'),
-          STATUS_STORAGE_REPLICATION_FACTOR: kplus.EnvValue.fromValue('3'),
+          CONFIG_STORAGE_TOPIC: EnvValue.fromValue('debezium.connect.config'),
+          OFFSET_STORAGE_TOPIC: EnvValue.fromValue('debezium.connect.offset'),
+          STATUS_STORAGE_TOPIC: EnvValue.fromValue('debezium.connect.status'),
+          CONFIG_STORAGE_REPLICATION_FACTOR: EnvValue.fromValue('3'),
+          OFFSET_STORAGE_REPLICATION_FACTOR: EnvValue.fromValue('3'),
+          STATUS_STORAGE_REPLICATION_FACTOR: EnvValue.fromValue('3'),
         }
       }]
     }).exposeViaService()
