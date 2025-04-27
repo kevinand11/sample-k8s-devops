@@ -51,14 +51,24 @@ export class DevopsChart extends cdk8s.Chart {
       version: '35.1.0',
       values: {
         ports: {
-          traefik: {
-            expose: { default: true }, // disable for prod
-            exposedPort: 90,
+          web: {
+            redirections: {
+              entryPoint: {
+                to: 'websecure',
+                scheme: 'https',
+                permanent: true,
+              }
+            },
+            asDefault: true,
+          },
+          websecure: {
+            asDefault: true,
           }
         },
         ingressRoute: {
           dashboard: {
             enabled: true,
+            entryPoints: ['web', 'websecure']
           }
         },
       },
@@ -113,7 +123,6 @@ export class DevopsChart extends cdk8s.Chart {
     new TraefikAnnotations(this, 'mongo-express-traefik-annotations', {
       ingress,
       annotations: {
-        'router.entryPoints': 'web',
         'router.middlewares': stripPrefixMiddleware.middlewareName,
       }
     })
@@ -161,7 +170,6 @@ export class DevopsChart extends cdk8s.Chart {
     new TraefikAnnotations(this, 'redis-commander-traefik-annotations', {
       ingress,
       annotations: {
-        'router.entryPoints': 'web',
         'router.middlewares': stripPrefixMiddleware.middlewareName,
       }
     })
@@ -228,7 +236,6 @@ export class DevopsChart extends cdk8s.Chart {
     new TraefikAnnotations(this, 'kafka-ui-traefik-annotations', {
       ingress,
       annotations: {
-        'router.entryPoints': 'web',
         'router.middlewares': stripPrefixMiddleware.middlewareName,
       }
     })
