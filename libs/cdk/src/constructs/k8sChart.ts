@@ -30,4 +30,8 @@ export class K8sChart extends Construct {
 	get applySetName () {
 		return this.#props.applySetName ?? `${this.#props.namespace}-${this.chart.node.id}-apply-set`
 	}
+
+	getFullName (name: string) {
+		return `${this.node.id}-name`
+	}
 }

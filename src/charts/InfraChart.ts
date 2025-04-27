@@ -1,5 +1,5 @@
 import { K8sCertManagerHelm, K8sChart, K8sChartProps } from '@devops/k8s-cdk'
-import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
+import { Issuer } from '@devops/k8s-cdk/cert-manager'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
@@ -11,13 +11,13 @@ interface InfraChartProps extends K8sChartProps {
 }
 
 export class InfraChart extends K8sChart {
-  certSecretName?: string
+  certSecretName: string
 
   constructor(private readonly props: InfraChartProps) {
     super('infra', props);
 
-    const { certSecretName } = this.createCertificate()
-    this.certSecretName = certSecretName
+    this.certSecretName = this.getFullName(`cert-manager-certifcate-secret`)
+    this.createCertificate()
   }
 
   createCertificate () {
@@ -41,7 +41,7 @@ export class InfraChart extends K8sChart {
     const certificateSecret = new Secret(this, 'certificate-secret')
 
     const { name: domainName, wildcard = false, certEmail } = this.props.domain
-    const issuer = new Issuer(this, 'cert-manager-issuer', {
+    /* const issuer = new Issuer(this, 'cert-manager-issuer', {
       spec: {
         acme: {
           email: certEmail,
@@ -66,12 +66,11 @@ export class InfraChart extends K8sChart {
           ]
         }
       }
-    })
+    }) */
 
-    const certSecretName = `${this.node.id}-cert-manager-certifcate-secret`
-    new Certificate(this, 'cert-manager-certificate', {
+    /* new Certificate(this, 'cert-manager-certificate', {
       spec: {
-        secretName: certSecretName,
+        secretName: this.certSecretName,
         issuerRef: {
           name: issuer.name,
           kind: issuer.kind,
@@ -79,8 +78,6 @@ export class InfraChart extends K8sChart {
         commonName: wildcard ? `*.${domainName}` : domainName,
         dnsNames: [domainName, wildcard ? `*.${domainName}` : ''].filter(Boolean)
       }
-    })
-
-    return { certSecretName }
+    }) */
   }
 }
