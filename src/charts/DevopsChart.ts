@@ -161,17 +161,23 @@ export class DevopsChart extends cdk8s.Chart {
   }
 
   createKafka () {
+    const user = 'user'
+    const password = 'password'
+
     const kafka = new K8sHelm(this, 'kafka', {
       chart: 'oci://registry-1.docker.io/bitnamicharts/kafka',
       version: '32.2.1',
       values: {
-        broker: {
-          replicaCount: 3,
+        sasl: {
+          client: {
+            users: [user],
+            passwords: password
+          }
         }
       },
     })
 
-    const service = kafka.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'broker')!
+    const service = kafka.apiObjects.find((o) => kplus.Service.isConstruct(o) && o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'kafka')!
     const hosts = `${service.name}.${this.scope.namespace}.svc.cluster.local:9092`
 
     const ingress = new kplus.Deployment(this, 'kafka-ui', {
@@ -183,9 +189,13 @@ export class DevopsChart extends cdk8s.Chart {
         envVariables: {
           KAFKA_CLUSTERS_0_NAME: kplus.EnvValue.fromValue('local'),
           KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kplus.EnvValue.fromValue(hosts),
+          KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: kplus.EnvValue.fromValue('SASL_PLAINTEXT'),
+          KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: kplus.EnvValue.fromValue('PLAIN'),
+          KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: kplus.EnvValue.fromValue(`org.apache.kafka.common.security.plain.PlainLoginModule required username="${user}" password="${password}";`),
+          DYNAMIC_CONFIG_ENABLED: kplus.EnvValue.fromValue('true'),
         }
       }]
-    }).exposeViaIngress('/')
+    }).exposeViaIngress('/kafka-ui')
 
     const stripPrefixMiddleware = new TraefikMiddleware(this, 'kafka-ui-strip-prefix-middleware', {
       stripPrefix: {
