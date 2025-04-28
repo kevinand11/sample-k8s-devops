@@ -68,13 +68,13 @@ export interface K8sTraefikHelmProps extends Omit<K8sHelmProps, 'chart' | 'versi
 
 
 export class K8sTraefikHelm extends K8sHelm {
-  private static registeredCRDs = false
   readonly ingressRoute?: IngressRoute
 
   constructor (scope: K8sChart, id: string, { installCRDs, ...rest }: K8sTraefikHelmProps) {
     super(scope, id, {
       ...rest,
-      chart: 'oci://ghcr.io/traefik/helm/traefik',
+      chart: 'traefik',
+      repo: 'https://traefik.github.io/charts',
       version: '35.1.0',
     })
 
@@ -82,12 +82,5 @@ export class K8sTraefikHelm extends K8sHelm {
       (o) => o.kind === 'IngressRoute',
       IngressRoute
     )
-
-    if (installCRDs && !K8sTraefikHelm.registeredCRDs) {
-      K8sTraefikHelm.registeredCRDs = true
-      new Include(this, `${id}-crds`, {
-        url: 'https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml',
-      })
-    }
   }
 }
