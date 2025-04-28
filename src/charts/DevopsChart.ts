@@ -1,7 +1,8 @@
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, K8sTraefikAnnotations, K8sTraefikHelm, K8sTraefikMiddleware, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, K8sTraefikHelm, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk'
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
-import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
+import { Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
+import { IngressRoute, IngressRouteSpecRoutesServicesKind, IngressRouteSpecRoutesServicesPort } from '@devops/k8s-cdk/traefik'
 import path from 'node:path'
 
 type KafkaValues = {
@@ -34,23 +35,32 @@ export class DevopsChart extends K8sChart {
       }
     })
 
-    new Deployment(this, 'App', {
-      replicas: 1,
-      containers: [{
-        image: image.nameTag,
-        securityContext: { ensureNonRoot: false, user: 0 },
-      }],
-    });
-
-    this.createIngressController()
-    this.createMongo()
-    this.createRedis()
-    this.createKafka()
+    const { publicService: mongoExpressService } = this.createMongo()
+    const { publicService: redisCommanderService } = this.createRedis()
+    const { publicService: kafkaUiService } = this.createKafka()
+    this.createRouter([
+      { service: mongoExpressService, host: this.domain.sub('mongo') },
+      { service: redisCommanderService, host: this.domain.sub('redis') },
+      { service: kafkaUiService, host: this.domain.sub('kafka') }
+    ])
   }
 
-  createIngressController () {
+  createCertificate () {
     const certSecretName = this.resolve(`cert-manager-issuer-certificate-secret`)
 
+    new Certificate(this, 'certificate', {
+      spec: {
+        secretName: certSecretName,
+        issuerRef: this.props.issuer,
+        commonName: this.domain.common,
+        dnsNames: [this.domain.base, this.domain.common]
+      }
+    })
+
+    return { secretName: certSecretName }
+  }
+
+  createRouter (routes: { service: Service, host: string }[]) {
     new K8sTraefikHelm(this, 'traefik-controller', {
       values: {
         ports: {
@@ -75,30 +85,36 @@ export class DevopsChart extends K8sChart {
         ingressRoute: {
           dashboard: {
             enabled: true,
-            tls: { secretName: certSecretName }
           }
         },
       },
       installCRDs: true,
     })
 
-    new Certificate(this, 'certificate', {
-      spec: {
-        secretName: certSecretName,
-        issuerRef: this.props.issuer,
-        commonName: this.domain.common,
-        dnsNames: [this.domain.base, this.domain.common]
-      }
-    })
 
-    new Deployment(this, 'traefik-whoami', {
+    const service = new Deployment(this, 'traefik-whoami', {
       replicas: 1,
       containers: [{
         image: 'traefik/whoami:latest',
         portNumber: 80,
         securityContext: { ensureNonRoot: false, user: 0 },
       }]
-    }).exposeViaIngress('/')
+    }).exposeViaService()
+
+    const { secretName } = this.createCertificate()
+
+    new IngressRoute(this, 'router', {
+      metadata: {},
+      spec: {
+        routes: routes
+          .concat({ service, host: this.domain.base })
+          .map(({ service, host }) => ({
+            match: `Host(\`${host}\`)`,
+            services: [{ kind: IngressRouteSpecRoutesServicesKind.SERVICE, name: service.name, port: IngressRouteSpecRoutesServicesPort.fromNumber(service.port) }]
+          })),
+        tls: { secretName }
+      }
+    })
   }
 
   createMongo () {
@@ -131,7 +147,7 @@ export class DevopsChart extends K8sChart {
     const hosts = new Array(replicas).fill(0).map((_, i) => `${statefulSet.name}-${i}.${service.name}.${this.namespace}.svc.cluster.local`)
     const url = `mongo://${auth.rootUser}:${auth.rootPassword}@${hosts.join(',')}:27017/replicaSet=${replicaSetName}`
 
-    const ingress= new Deployment(this, 'mongo-express', {
+    const publicService= new Deployment(this, 'mongo-express', {
       replicas: 1,
       containers: [{
         image: 'mongo-express:latest',
@@ -143,19 +159,9 @@ export class DevopsChart extends K8sChart {
           ME_CONFIG_MONGODB_ADMINPASSWORD: EnvValue.fromValue(auth.rootPassword),
         }
       }]
-    }).exposeViaIngress('/mongo-express')
+    }).exposeViaService()
 
-    const stripPrefixMiddleware = new K8sTraefikMiddleware(this, 'mongo-express-strip-prefix-middleware', {
-      stripPrefix: {
-        prefixes: ['/mongo-express']
-      }
-    })
-
-    K8sTraefikAnnotations.build()
-      .addMiddleware(stripPrefixMiddleware)
-      .collect(ingress)
-
-    return { url }
+    return { url, publicService }
   }
 
   createRedis () {
@@ -179,7 +185,7 @@ export class DevopsChart extends K8sChart {
 
     const redisUrl = `redis://${redisHost}`
 
-    const ingress = new Deployment(this, 'redis-commander', {
+    const publicService = new Deployment(this, 'redis-commander', {
       replicas: 1,
       containers: [{
         image: 'rediscommander/redis-commander:latest',
@@ -190,19 +196,9 @@ export class DevopsChart extends K8sChart {
           REDIS_PASSWORD: EnvValue.fromValue(password),
         }
       }]
-    }).exposeViaIngress('/redis-commander')
+    }).exposeViaService()
 
-    const stripPrefixMiddleware = new K8sTraefikMiddleware(this, 'redis-commander-strip-prefix-middleware', {
-      stripPrefix: {
-        prefixes: ['/redis-commander']
-      }
-    })
-
-    K8sTraefikAnnotations.build()
-      .addMiddleware(stripPrefixMiddleware)
-      .collect(ingress)
-
-    return { redisUrl }
+    return { redisUrl, publicService }
   }
 
   createKafka () {
@@ -238,7 +234,7 @@ export class DevopsChart extends K8sChart {
 
     const { url: debeziumUrl } = this.createDebezium(values)
 
-    const ingress = new Deployment(this, 'kafka-ui', {
+    const publicService = new Deployment(this, 'kafka-ui', {
       replicas: 1,
       containers: [{
         image: 'provectuslabs/kafka-ui:latest',
@@ -255,19 +251,9 @@ export class DevopsChart extends K8sChart {
           DYNAMIC_CONFIG_ENABLED: EnvValue.fromValue('true'),
         }
       }]
-    }).exposeViaIngress('/kafka-ui')
+    }).exposeViaService()
 
-    const stripPrefixMiddleware = new K8sTraefikMiddleware(this, 'kafka-ui-strip-prefix-middleware', {
-      stripPrefix: {
-        prefixes: ['/kafka-ui']
-      }
-    })
-
-    K8sTraefikAnnotations.build()
-      .addMiddleware(stripPrefixMiddleware)
-      .collect(ingress)
-
-    return { values, debeziumUrl }
+    return { values, debeziumUrl, publicService }
   }
 
   createDebezium (values: KafkaValues) {

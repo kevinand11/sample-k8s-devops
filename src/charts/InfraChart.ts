@@ -44,7 +44,7 @@ export class InfraChart extends K8sChart {
       spec: {
         acme: {
           email: certEmail,
-          server: 'https://acme-staging-v02.api.letsencrypt.org/directory', // https://acme-v02.api.letsencrypt.org/directory for prod
+          server: 'https://acme-v02.api.letsencrypt.org/directory',
           privateKeySecretRef: {
             name: this.resolve('cert-manager-issuer-private-key-secret'),
           },
