@@ -7,8 +7,9 @@ export class K8sCertManagerHelm extends K8sHelm {
   constructor (scope: K8sChart, id: string, props: K8sCertManagerHelmProps) {
     super(scope, id, {
       ...props,
-      chart: 'oci://registry-1.docker.io/bitnamicharts/cert-manager',
-      version: '1.4.14',
+      chart: 'cert-manager',
+      repo: 'https://charts.jetstack.io',
+      version: 'v1.17.2'
     })
   }
 }

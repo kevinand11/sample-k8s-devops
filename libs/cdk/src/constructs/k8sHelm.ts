@@ -7,9 +7,9 @@ export interface K8sHelmProps extends Omit<HelmProps, 'releaseName'> {}
 export class K8sHelm extends Helm {
 	constructor (scope: K8sChart, id: string, readonly props: K8sHelmProps) {
 		super(scope, id, {
-			...props,
-			releaseName: scope.node.id,
 			namespace: scope.namespace,
+			releaseName: scope.node.id,
+			...props,
 		})
 	}
 

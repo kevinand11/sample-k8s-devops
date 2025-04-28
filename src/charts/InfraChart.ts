@@ -1,5 +1,5 @@
 import { K8sCertManagerHelm, K8sChart, K8sChartProps } from '@devops/k8s-cdk'
-import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
+import { Issuer } from '@devops/k8s-cdk/cert-manager'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
@@ -24,16 +24,14 @@ export class InfraChart extends K8sChart {
   createCertificate () {
     new K8sCertManagerHelm(this, 'cert-manager', {
       values: {
-        installCRDs: true,
-        controller: {
-          extraArgs: [
-            '--dns01-recursive-nameservers-only',
-            '--dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53',
-          ],
-          dnsPolicy: 'None',
-          dnsConfig: {
-            nameservers: ['1.1.1.1', '9.9.9.9']
-          }
+        crds: { enabled: true },
+        extraArgs: [
+          '--dns01-recursive-nameservers-only',
+          '--dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53',
+        ],
+        podDnsPolicy: 'None',
+        podDnsConfig: {
+          nameservers: ['1.1.1.1', '9.9.9.9']
         }
       },
     })
@@ -75,7 +73,7 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    new Certificate(this, 'cert-manager-certificate', {
+    /* new Certificate(this, 'cert-manager-certificate', {
       spec: {
         secretName: this.certSecretName,
         issuerRef: {
@@ -85,6 +83,6 @@ export class InfraChart extends K8sChart {
         commonName: domainName,
         dnsNames: [domainName, wildcard ? `*.${domainName}` : ''].filter(Boolean)
       }
-    })
+    }) */
   }
 }
