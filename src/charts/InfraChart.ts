@@ -1,29 +1,21 @@
 import { K8sCertManagerHelm, K8sChart, K8sChartProps } from '@devops/k8s-cdk'
-import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
+import { ClusterIssuer } from '@devops/k8s-cdk/cert-manager'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
-  domain: {
-    name: string;
-    wildcard?: boolean;
-    certEmail: string;
-    cloudflareApiToken: string
-  }
+  certEmail: string;
+  cloudflareApiToken: string
 }
 
 export class InfraChart extends K8sChart {
-  certSecretName: string
-  certDomainName: string
-
+  readonly issuer: ClusterIssuer
   constructor(private readonly props: InfraChartProps) {
     super('infra', props);
-
-    this.certSecretName = this.resolve(`cert-manager-issuer-certificate-secret`)
-    this.certDomainName = props.domain.wildcard ? `*.${props.domain.name}` : props.domain.name
-    this.createCertificate()
+    const { issuer } = this.createIssuer()
+    this.issuer = issuer
   }
 
-  createCertificate () {
+  createIssuer () {
     new K8sCertManagerHelm(this, 'cert-manager', {
       values: {
         namespace: this.namespace,
@@ -40,7 +32,7 @@ export class InfraChart extends K8sChart {
       },
     })
 
-    const { name: domainName, wildcard = false, certEmail, cloudflareApiToken } = this.props.domain
+    const { certEmail, cloudflareApiToken } = this.props
 
     const cloudflareApiTokenSecret = new Secret(this, 'cert-manager-issuer-cloudflare-api-token-secret', {
       stringData: {
@@ -48,7 +40,7 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    const issuer = new Issuer(this, 'cert-manager-issuer', {
+    const issuer = new ClusterIssuer(this, 'cert-manager-cluster-issuer', {
       spec: {
         acme: {
           email: certEmail,
@@ -72,16 +64,6 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    new Certificate(this, 'cert-manager-issuer-certificate', {
-      spec: {
-        secretName: this.certSecretName,
-        issuerRef: {
-          name: issuer.name,
-          kind: issuer.kind,
-        },
-        commonName: this.certDomainName,
-        dnsNames: [domainName, wildcard ? `*.${domainName}` : ''].filter(Boolean)
-      }
-    })
+    return { issuer }
   }
 }

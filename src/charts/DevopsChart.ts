@@ -1,4 +1,5 @@
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, K8sTraefikAnnotations, K8sTraefikHelm, K8sTraefikMiddleware } from '@devops/k8s-cdk'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, K8sTraefikAnnotations, K8sTraefikHelm, K8sTraefikMiddleware, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk'
+import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
 import path from 'node:path'
@@ -13,12 +14,17 @@ type KafkaValues = {
 }
 
 interface DevopsChartProps extends K8sChartProps {
-  certSecretName?: string
+  domain: Ks8DomainProps
+  issuer: { name: string, kind: string }
 }
 
 export class DevopsChart extends K8sChart {
+  private readonly domain: KsDomain
+
   constructor(private readonly props: DevopsChartProps) {
     super('devops', props);
+
+    this.domain = new KsDomain(props.domain)
 
     const image = new K8sDockerImage(this, 'docker', {
       name: 'kevinand11/k8s-demo-app',
@@ -43,7 +49,9 @@ export class DevopsChart extends K8sChart {
   }
 
   createIngressController () {
-    const traefik = new K8sTraefikHelm(this, 'traefik-controller', {
+    const certSecretName = this.resolve(`cert-manager-issuer-certificate-secret`)
+
+    new K8sTraefikHelm(this, 'traefik-controller', {
       values: {
         ports: {
           traefik: {
@@ -67,10 +75,20 @@ export class DevopsChart extends K8sChart {
         ingressRoute: {
           dashboard: {
             enabled: true,
+            tls: { secretName: certSecretName }
           }
         },
       },
       installCRDs: true,
+    })
+
+    new Certificate(this, 'certificate', {
+      spec: {
+        secretName: certSecretName,
+        issuerRef: this.props.issuer,
+        commonName: this.domain.common,
+        dnsNames: [this.domain.base, this.domain.common]
+      }
     })
 
     new Deployment(this, 'traefik-whoami', {
@@ -96,10 +114,7 @@ export class DevopsChart extends K8sChart {
       version: '16.5.2',
       values: {
         architecture: 'replicaset',
-        auth: {
-          ...auth,
-          replicaSetKey: replicaSetName
-        },
+        auth,
         replicaCount: replicas,
         replicaSetName,
       },

@@ -1,7 +1,7 @@
 import { ApiObject } from 'cdk8s'
 import { Resource } from 'cdk8s-plus-32'
 import { Construct } from 'constructs'
-import { IngressRoute, Middleware, MiddlewareSpec } from '../../imports/traefik.io'
+import { Middleware, MiddlewareSpec } from '../../imports/traefik.io'
 import { K8sChart } from './k8sChart'
 import { K8sHelm, K8sHelmProps } from './k8sHelm'
 
@@ -68,8 +68,6 @@ export interface K8sTraefikHelmProps extends Omit<K8sHelmProps, 'chart' | 'versi
 
 
 export class K8sTraefikHelm extends K8sHelm {
-  readonly ingressRoute?: IngressRoute
-
   constructor (scope: K8sChart, id: string, { installCRDs, ...rest }: K8sTraefikHelmProps) {
     super(scope, id, {
       ...rest,
@@ -77,7 +75,5 @@ export class K8sTraefikHelm extends K8sHelm {
       repo: 'https://traefik.github.io/charts',
       version: '35.1.0',
     })
-
-    this.ingressRoute = this.getTypedObject( (o) => o.kind === 'IngressRoute')
   }
 }

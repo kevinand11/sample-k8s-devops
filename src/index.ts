@@ -4,17 +4,23 @@ import { InfraChart } from './charts/InfraChart'
 
 const infraChart = new InfraChart({
   namespace: 'infra',
-  domain: {
-    name: process.env.DOMAIN_NAME!,
-    certEmail: process.env.DOMAIN_CERT_EMAIL!,
-    cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN!,
-    wildcard: true,
-  }
+  certEmail: process.env.DOMAIN_CERT_EMAIL!,
+  cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN!,
 })
 
 const devopsChart = new DevopsChart({
   namespace: 'dev',
-  certSecretName: infraChart.certSecretName
+  issuer: {
+    name: infraChart.issuer.name,
+    kind: infraChart.issuer.kind,
+  },
+  domain: {
+    scope: 'dev',
+    domain: {
+      name: process.env.DOMAIN_NAME!,
+      wildcard: true,
+    }
+  }
 })
 
 
