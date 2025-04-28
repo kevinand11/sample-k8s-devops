@@ -1,5 +1,4 @@
 import { App, Chart } from 'cdk8s'
-import { Namespace } from 'cdk8s-plus-32'
 
 export interface K8sChartProps {
 	namespace: string
@@ -16,9 +15,6 @@ export class K8sChart extends Chart {
 		super(app, id, {
 			disableResourceNameHashes: true,
 			labels: { [labelKey]: `${props.namespace}-${id}` }
-		})
-		new Namespace(this, `${props.namespace}-namespace`, {
-			metadata: { name: props.namespace }
 		})
 		this.namespace = props.namespace
 		this.app = app

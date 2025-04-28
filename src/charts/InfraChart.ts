@@ -26,7 +26,11 @@ export class InfraChart extends K8sChart {
   createCertificate () {
     new K8sCertManagerHelm(this, 'cert-manager', {
       values: {
+        namespace: this.namespace,
         crds: { enabled: true },
+        global: {
+          leaderElection: { namespace: this.namespace },
+        },
         dns01RecursiveNameserversOnly: true,
         dns01RecursiveNameservers: '1.1.1.1:53,9.9.9.9:53',
         podDnsPolicy: 'None',

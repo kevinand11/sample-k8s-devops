@@ -84,18 +84,23 @@ export class K8sApp {
 
 	async #applyChart (chart: K8sChart, options: ApplyOptions) {
 		const result = await this.#synthChart(chart, options, !options?.skipImageBuilds)
-		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id })
-		await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
+		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id }, result)
+		// await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
+		const applySetName = `${chart.namespace}-${chart.node.id}`
+		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
+		await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${applySetName} -f -`, result)
 	}
 
 	async #diffChart (chart: K8sChart, options: DiffOptions) {
 		const result = await this.#synthChart(chart, options)
-		await exec(`kubectl diff --prune -l=${chart.selector} -f -`, result, true)
+		// await exec(`kubectl diff --prune -l=${chart.selector} -f -`, result, true)
+		await exec(`kubectl diff --prune -n=${chart.namespace} -f -`, result, true)
 	}
 
-	async #deleteChart (chart: K8sChart, options: DeleteOptions) {
-		const result = await this.#synthChart(chart, options)
-		await exec(`kubectl delete -l=${chart.selector} --wait --ignore-not-found -f -`, result)
+	async #deleteChart (chart: K8sChart, options: DeleteOptions, res?: string) {
+		// const result = res ?? await this.#synthChart(chart, options)
+		// await exec(`kubectl delete -l=${chart.selector} --wait --ignore-not-found -f -`, result)
+		await exec(`kubectl delete ns ${chart.namespace} --wait --ignore-not-found`)
 	}
 }
 
