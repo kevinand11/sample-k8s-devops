@@ -1,0 +1,10 @@
+{
+  "name": "@devops/k8s-scripts",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "license": "Apache-2.0",
+  "private": true,
+  "dependencies": {
+    "zx": "^8.5.3"
+  }
+}

@@ -41,6 +41,12 @@ importers:
         specifier: ^2.200.52
         version: 2.200.53
 
+  libs/scripts:
+    dependencies:
+      zx:
+        specifier: ^8.5.3
+        version: 8.5.3
+
 packages:
 
   '@jsii/check-node@1.111.0':
@@ -585,8 +591,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  typescript@5.9.0-dev.20250427:
-    resolution: {integrity: sha512-rD2EPLQ8g8bpBtnveMTgGFAuuEujcrirMAd8ry0v4KKrsJOppsaiLJm4kFPLjHcdMYfQ3LKyitwbB7H+T8A5CA==}
+  typescript@5.9.0-dev.20250428:
+    resolution: {integrity: sha512-/6K3WJlc0zjdAgLJMpU40jIxBIQ4fpAfE3o35EsPBTaqvDh9X6rY+c0NBYpYb/3UG0a2wgSr0yD0sS1l6Km7Fw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -840,7 +846,7 @@ snapshots:
     dependencies:
       semver: 7.7.1
       shelljs: 0.8.5
-      typescript: 5.9.0-dev.20250427
+      typescript: 5.9.0-dev.20250428
 
   emoji-regex@8.0.0: {}
 
@@ -1234,7 +1240,7 @@ snapshots:
 
   typescript@5.8.3: {}
 
-  typescript@5.9.0-dev.20250427: {}
+  typescript@5.9.0-dev.20250428: {}
 
   undici-types@6.21.0: {}
 
