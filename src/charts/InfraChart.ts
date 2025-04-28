@@ -13,11 +13,13 @@ interface InfraChartProps extends K8sChartProps {
 
 export class InfraChart extends K8sChart {
   certSecretName: string
+  certDomainName: string
 
   constructor(private readonly props: InfraChartProps) {
     super('infra', props);
 
-    this.certSecretName = this.getFullName(`cert-manager-certificate-secret`)
+    this.certSecretName = this.resolve(`cert-manager-issuer-certificate-secret`)
+    this.certDomainName = props.domain.wildcard ? `*.${props.domain.name}` : props.domain.name
     this.createCertificate()
   }
 
@@ -25,10 +27,8 @@ export class InfraChart extends K8sChart {
     new K8sCertManagerHelm(this, 'cert-manager', {
       values: {
         crds: { enabled: true },
-        extraArgs: [
-          '--dns01-recursive-nameservers-only',
-          '--dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53',
-        ],
+        dns01RecursiveNameserversOnly: true,
+        dns01RecursiveNameservers: '1.1.1.1:53,9.9.9.9:53',
         podDnsPolicy: 'None',
         podDnsConfig: {
           nameservers: ['1.1.1.1', '9.9.9.9']
@@ -38,8 +38,7 @@ export class InfraChart extends K8sChart {
 
     const { name: domainName, wildcard = false, certEmail, cloudflareApiToken } = this.props.domain
 
-    const privateKeySecret = new Secret(this, 'issuer-private-key-secret')
-    const cloudflareApiTokenSecret = new Secret(this, 'issuer-cloudflare-api-token-secret', {
+    const cloudflareApiTokenSecret = new Secret(this, 'cert-manager-issuer-cloudflare-api-token-secret', {
       stringData: {
         apiToken: cloudflareApiToken,
       }
@@ -51,8 +50,7 @@ export class InfraChart extends K8sChart {
           email: certEmail,
           server: 'https://acme-staging-v02.api.letsencrypt.org/directory', // https://acme-v02.api.letsencrypt.org/directory for prod
           privateKeySecretRef: {
-            name: privateKeySecret.name,
-            key: 'tls.key'
+            name: this.resolve('cert-manager-issuer-private-key-secret'),
           },
           solvers: [
             {
@@ -64,23 +62,20 @@ export class InfraChart extends K8sChart {
                   }
                 }
               },
-              selector: {
-                dnsZones: [domainName]
-              }
             }
           ]
         }
       }
     })
 
-    new Certificate(this, 'cert-manager-certificate', {
+    new Certificate(this, 'cert-manager-issuer-certificate', {
       spec: {
         secretName: this.certSecretName,
         issuerRef: {
           name: issuer.name,
           kind: issuer.kind,
         },
-        commonName: domainName,
+        commonName: this.certDomainName,
         dnsNames: [domainName, wildcard ? `*.${domainName}` : ''].filter(Boolean)
       }
     })

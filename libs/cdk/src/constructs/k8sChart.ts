@@ -33,7 +33,7 @@ export class K8sChart extends Construct {
 		return `${labelKey}=${this.chart.labels[labelKey]}`
 	}
 
-	getFullName (name: string) {
+	resolve (name: string) {
 		return `${this.node.id}-${name}`
 	}
 }
