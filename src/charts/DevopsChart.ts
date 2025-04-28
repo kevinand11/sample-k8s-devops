@@ -93,14 +93,12 @@ export class DevopsChart extends K8sChart {
       },
     })
 
-    const service = mongo.getTypedObject(
+    const service = mongo.getTypedObject<KubeService>(
       (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb',
-      KubeService
     )!
 
-    const statefulSet = mongo.getTypedObject(
+    const statefulSet = mongo.getTypedObject<KubeStatefulSet>(
       (o) => o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb',
-      KubeStatefulSet
     )!
 
     const hosts = new Array(replicas).fill(0).map((_, i) => `${statefulSet.name}-${i}.${service.name}.${this.namespace}.svc.cluster.local`)
@@ -146,9 +144,9 @@ export class DevopsChart extends K8sChart {
       },
     })
 
-    const service = redis.getTypedObject(
+    const service = redis.getTypedObject<KubeService>(
       (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'master',
-      KubeService
+
     )!
     const redisHost = `${service.name}.${this.namespace}.svc.cluster.local`
 
@@ -197,9 +195,8 @@ export class DevopsChart extends K8sChart {
       },
     })
 
-    const service = kafka.getTypedObject(
+    const service = kafka.getTypedObject<KubeService>(
       (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'kafka',
-      KubeService
     )!
     const host = `${service.name}.${this.namespace}.svc.cluster.local:9092`
 

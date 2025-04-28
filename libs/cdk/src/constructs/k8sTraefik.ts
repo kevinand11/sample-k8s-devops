@@ -1,4 +1,4 @@
-import { ApiObject, Include } from 'cdk8s'
+import { ApiObject } from 'cdk8s'
 import { Resource } from 'cdk8s-plus-32'
 import { Construct } from 'constructs'
 import { IngressRoute, Middleware, MiddlewareSpec } from '../../imports/traefik.io'
@@ -78,9 +78,6 @@ export class K8sTraefikHelm extends K8sHelm {
       version: '35.1.0',
     })
 
-    this.ingressRoute = this.getTypedObject(
-      (o) => o.kind === 'IngressRoute',
-      IngressRoute
-    )
+    this.ingressRoute = this.getTypedObject( (o) => o.kind === 'IngressRoute')
   }
 }
