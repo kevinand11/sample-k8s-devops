@@ -1,7 +1,20 @@
 import { exec } from '../common/utils'
 import { K8sChart } from './k8sChart'
 import { K8sConstruct } from './k8sConstruct'
-import { Platform } from './k8sPlatform'
+
+export class K8sDockerPlatform {
+	readonly platform: string;
+	private constructor (platform: string) {
+		this.platform = platform
+	}
+
+	static LINUX_AMD64 = new K8sDockerPlatform('linux/amd64')
+	static LINUX_ARM64 = new K8sDockerPlatform('linux/arm64')
+
+	static custom (platform: string) {
+		return new K8sDockerPlatform(platform)
+	}
+}
 
 export interface LocalDockerImageProps {
 	name: string
@@ -10,7 +23,7 @@ export interface LocalDockerImageProps {
 		context: string
 		file?: string
 		target?: string
-		platforms?: Platform[]
+		platforms?: K8sDockerPlatform[]
 		args?: Record<string, string>
 		tags?: Record<string, string>
 	}

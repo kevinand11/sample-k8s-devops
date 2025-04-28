@@ -84,7 +84,7 @@ export class K8sApp {
 
 	async #applyChart (chart: K8sChart, options: ApplyOptions) {
 		const result = await this.#synthChart(chart, options, !options?.skipImageBuilds)
-		if (options.fresh) this.#deleteChart(chart, { ...options, chartId: chart.node.id })
+		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id })
 		await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
 	}
 
@@ -95,7 +95,7 @@ export class K8sApp {
 
 	async #deleteChart (chart: K8sChart, options: DeleteOptions) {
 		const result = await this.#synthChart(chart, options)
-		await exec(`kubectl delete -l=${chart.selector} --ignore-not-found -f -`, result)
+		await exec(`kubectl delete -l=${chart.selector} --wait --ignore-not-found -f -`, result)
 	}
 }
 
