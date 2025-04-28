@@ -1,4 +1,5 @@
 import { App, Chart, ChartProps } from 'cdk8s'
+import { Namespace } from 'cdk8s-plus-32'
 import { Construct } from 'constructs'
 
 export interface K8sChartProps extends ChartProps {
@@ -19,6 +20,9 @@ export class K8sChart extends Construct {
 			disableResourceNameHashes: true,
 			labels: { [labelKey]: `${props.namespace}-${id}` }
 		})
+		new Namespace(chart, `${props.namespace}-namespace`, {
+			metadata: { name: props.namespace }
+		 })
 		super(chart, id)
 		this.#props = props
 		this.app = app

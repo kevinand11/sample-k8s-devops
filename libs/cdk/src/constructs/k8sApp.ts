@@ -22,7 +22,7 @@ export class K8sApp {
 
 		const synthCommand = new Command('synth')
 			.description('generate yaml representation of code')
-			.action(async (options) => {
+			.action(async (options: SynthOptions) => {
 				await fs.rm(toolFolder, { recursive: true, force: true })
 				await createFolderIfNotExists(toolFolder)
 				for (const chart of this.#filterCharts(options)) await this.#synthChart(chart, options)
@@ -32,22 +32,20 @@ export class K8sApp {
 			.description('apply code changes to k8s cluster')
 			.option('--fresh', 'run fresh installation', false)
 			.option('--skip-image-builds', 'force skip image builds', false)
-			.action(async (options) => {
+			.action(async (options: ApplyOptions) => {
 				for (const chart of this.#filterCharts(options)) await this.#applyChart(chart, options)
 			})
 
 		const diffCommand = new Command('diff')
 			.description('show diff between code and k8s cluster')
-			.action(async (options) => {
+			.action(async (options: DiffOptions) => {
 				for (const chart of this.#filterCharts(options)) await this.#diffChart(chart, options)
 			})
 
 		const deleteCommand = new Command('delete')
-			.description('delete chart')
-			.argument('<chart-id>', 'chart to delete')
-			.action(async (options) => {
-				const chart = this.#filterCharts(options).find((c) => c.id === options.chartId)
-				if (chart) await this.#deleteChart(chart, options)
+			.description('delete charts')
+			.action(async (options: DeleteOptions) => {
+				for (const chart of this.#filterCharts(options))  await this.#deleteChart(chart, options)
 			})
 
 		this.command = new Command('k8s-cli')
@@ -86,8 +84,7 @@ export class K8sApp {
 
 	async #applyChart (chart: K8sChart, options: ApplyOptions) {
 		const result = await this.#synthChart(chart, options, !options?.skipImageBuilds)
-		if (options.fresh) this.#deleteChart(chart, { ...options, chart: chart.id })
-		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
+		if (options.fresh) this.#deleteChart(chart, { ...options, chartId: chart.id })
 		await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
 	}
 
@@ -96,9 +93,9 @@ export class K8sApp {
 		await exec(`kubectl diff --prune -l=${chart.selector} -f -`, result, true)
 	}
 
-	async #deleteChart (chart: K8sChart, option: DeleteOptions) {
-		await exec(`kubectl delete all -l=${chart.selector}`)
-		await exec(`kubectl delete ns ${chart.namespace} || true`)
+	async #deleteChart (chart: K8sChart, options: DeleteOptions) {
+		const result = await this.#synthChart(chart, options)
+		await exec(`kubectl delete -l=${chart.selector} --ignore-not-found -f -`, result)
 	}
 }
 
@@ -116,5 +113,5 @@ interface ApplyOptions extends CommonOptions {
 
 interface DiffOptions extends CommonOptions {}
 interface DeleteOptions extends CommonOptions {
-	chart: string
+	chartId: string
 }
