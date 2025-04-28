@@ -86,7 +86,7 @@ export class K8sApp {
 		const result = await this.#synthChart(chart, options, !options?.skipImageBuilds)
 		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id }, result)
 		// await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
-		const applySetName = `${chart.namespace}-${chart.node.id}`
+		const applySetName = `configmaps/${chart.namespace}-${chart.node.id}`
 		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
 		await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${applySetName} -f -`, result)
 	}
