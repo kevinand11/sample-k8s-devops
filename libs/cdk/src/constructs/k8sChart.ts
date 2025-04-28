@@ -11,7 +11,7 @@ export class K8sChart extends Construct {
 	readonly chart: Chart
 	readonly #props: K8sChartProps
 
-	constructor (id: string, props: K8sChartProps) {
+	constructor (readonly id: string, props: K8sChartProps) {
 		const app = new App()
 		const chart = new Chart(app, id, {
 			...props,

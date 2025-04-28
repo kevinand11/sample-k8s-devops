@@ -1,6 +1,6 @@
 import { Command } from 'commander'
-import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
 import { createFolderIfNotExists, exec } from '../common/utils'
 
 import { K8sChart } from './k8sChart'
@@ -12,12 +12,21 @@ export class K8sApp {
 	command: Command
 
 	constructor (private readonly charts: K8sChart[]) {
+		const listCommand = new Command()
+			.command('list')
+			.description('list charts')
+			.action(async (options) => {
+				const charts = this.#filterCharts(options)
+				const data = charts.map((chart) => ({ Id: chart.id, Name: chart.constructor.name, Namespace: chart.namespace  }))
+				console.table(data)
+			})
+
 		const synthCommand = new Command()
 			.command('synth')
 			.description('generate yaml representation of code')
 			.option('-q --quiet', 'silent', false)
 			.action(async (options) => {
-				for (const chart of this.charts) await this.#synthChart(chart, options)
+				for (const chart of this.#filterCharts(options)) await this.#synthChart(chart, options)
 			})
 
 		const applyCommand = new Command()
@@ -26,26 +35,43 @@ export class K8sApp {
 			.option('--fresh', 'run fresh installation', false)
 			.option('--skip-image-builds', 'force skip image builds', false)
 			.action(async (options) => {
-				for (const chart of this.charts) await this.#applyChart(chart, options)
+				for (const chart of this.#filterCharts(options)) await this.#applyChart(chart, options)
 			})
 
 		const diffCommand = new Command()
 			.command('diff')
 			.description('show diff between code and k8s cluster')
 			.action(async (options) => {
-				for (const chart of this.charts) await this.#diffChart(chart, options)
+				for (const chart of this.#filterCharts(options)) await this.#diffChart(chart, options)
 			})
 
 		this.command = new Command()
-			.addCommand(synthCommand)
-			.addCommand(applyCommand)
-			.addCommand(diffCommand)
+			.addCommand(this.addCommonArguments(listCommand))
+			.addCommand(this.addCommonArguments(synthCommand))
+			.addCommand(this.addCommonArguments(applyCommand))
+			.addCommand(this.addCommonArguments(diffCommand))
+	}
+
+	addCommonArguments (command: Command) {
+		return command
+			.option('--include', 'include charts in this list', '')
+			.option('--exclude', 'exclude charts in this list', '')
 	}
 
 	process () {
 		fs.rm(toolFolder, { recursive: true, force: true }).then(async () => {
 			await createFolderIfNotExists(toolFolder)
 			await this.command.parseAsync(process.argv)
+		})
+	}
+
+	#filterCharts (options: CommonOptions) {
+		const include = options?.include?.split(',').filter(Boolean) ?? []
+		const exclude = options?.exclude?.split(',').filter(Boolean) ?? []
+		return this.charts.filter((chart) => {
+			if (exclude.includes(chart.id)) return false
+			if (!include.length) return true
+			return include.includes(chart.id)
 		})
 	}
 
@@ -58,25 +84,28 @@ export class K8sApp {
 	}
 
 	async #applyChart (chart: K8sChart, options: ApplyOptions) {
-		const result = await this.#synthChart(chart, { quiet: true }, !options?.skipImageBuilds)
+		const result = await this.#synthChart(chart, options, !options?.skipImageBuilds)
 		if (options.fresh) await exec(`kubectl delete ns ${chart.namespace} || true`)
 		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
 		await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${chart.applySetName} -f -`, result)
 	}
 
 	async #diffChart (chart: K8sChart, options: DiffOptions) {
-		const result = await this.#synthChart(chart, { quiet: true })
+		const result = await this.#synthChart(chart, options)
 		await exec(`kubectl diff --prune -n=${chart.namespace} -f -`, result, true)
 	}
 }
 
-type SynthOptions = {
-	quiet?: boolean
+interface CommonOptions {
+	include?: string
+	exclude?: string
 }
 
-type ApplyOptions = {
+interface SynthOptions extends CommonOptions {}
+
+interface ApplyOptions extends CommonOptions {
 	fresh?: boolean
 	skipImageBuilds?: boolean
 }
 
-type DiffOptions = {}
+interface DiffOptions extends CommonOptions {}
