@@ -46,16 +46,14 @@ export class K8sApp {
 			})
 
 		this.command = new Command()
-			.addCommand(this.addCommonArguments(listCommand))
-			.addCommand(this.addCommonArguments(synthCommand))
-			.addCommand(this.addCommonArguments(applyCommand))
-			.addCommand(this.addCommonArguments(diffCommand))
-	}
-
-	addCommonArguments (command: Command) {
-		return command
+			.name('k8s-cli')
+			.description('Cli to manage your k8s application')
 			.option('--include', 'include charts in this list', '')
 			.option('--exclude', 'exclude charts in this list', '')
+			.addCommand(listCommand)
+			.addCommand(synthCommand)
+			.addCommand(applyCommand)
+			.addCommand(diffCommand)
 	}
 
 	process () {

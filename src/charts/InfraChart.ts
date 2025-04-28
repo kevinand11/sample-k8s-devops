@@ -1,5 +1,5 @@
 import { K8sCertManagerHelm, K8sChart, K8sChartProps } from '@devops/k8s-cdk'
-import { Issuer } from '@devops/k8s-cdk/cert-manager'
+import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
@@ -7,6 +7,7 @@ interface InfraChartProps extends K8sChartProps {
     name: string;
     wildcard?: boolean;
     certEmail: string;
+    cloudflareApiToken: string
   }
 }
 
@@ -38,25 +39,32 @@ export class InfraChart extends K8sChart {
       },
     })
 
-    const certificateSecret = new Secret(this, 'certificate-secret')
+    const { name: domainName, wildcard = false, certEmail, cloudflareApiToken } = this.props.domain
 
-    const { name: domainName, wildcard = false, certEmail } = this.props.domain
-    /* const issuer = new Issuer(this, 'cert-manager-issuer', {
+    const privateKeySecret = new Secret(this, 'issuer-private-key-secret')
+    const cloudflareApiTokenSecret = new Secret(this, 'issuer-cloudflare-api-token-secret', {
+      stringData: {
+        apiToken: cloudflareApiToken,
+      }
+    })
+
+    const issuer = new Issuer(this, 'cert-manager-issuer', {
       spec: {
         acme: {
           email: certEmail,
           server: 'https://acme-staging-v02.api.letsencrypt.org/directory', // https://acme-v02.api.letsencrypt.org/directory for prod
           privateKeySecretRef: {
-            name: certificateSecret.name,
+            name: privateKeySecret.name,
             key: 'tls.key'
           },
           solvers: [
             {
-              // TODO: complete impl
               dns01: {
-                webhook: {
-                  solverName: 'godaddy',
-                  groupName: `acme.${domainName}`,
+                cloudflare: {
+                  apiTokenSecretRef: {
+                    name: cloudflareApiTokenSecret.name,
+                    key: 'apiToken'
+                  }
                 }
               },
               selector: {
@@ -66,18 +74,18 @@ export class InfraChart extends K8sChart {
           ]
         }
       }
-    }) */
+    })
 
-    /* new Certificate(this, 'cert-manager-certificate', {
+    new Certificate(this, 'cert-manager-certificate', {
       spec: {
         secretName: this.certSecretName,
         issuerRef: {
           name: issuer.name,
           kind: issuer.kind,
         },
-        commonName: wildcard ? `*.${domainName}` : domainName,
+        commonName: domainName,
         dnsNames: [domainName, wildcard ? `*.${domainName}` : ''].filter(Boolean)
       }
-    }) */
+    })
   }
 }

@@ -5,8 +5,9 @@ import { InfraChart } from './charts/InfraChart'
 const infraChart = new InfraChart({
   namespace: 'infra',
   domain: {
-    name: 'stranerd.com',
-    certEmail: 'kevinfizu@gmail.com',
+    name: process.env.DOMAIN_NAME!,
+    certEmail: process.env.DOMAIN_CERT_EMAIL!,
+    cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN!,
     wildcard: true,
   }
 })

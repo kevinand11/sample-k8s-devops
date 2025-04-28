@@ -32,6 +32,6 @@ export class K8sChart extends Construct {
 	}
 
 	getFullName (name: string) {
-		return `${this.node.id}-name`
+		return `${this.node.id}-${name}`
 	}
 }

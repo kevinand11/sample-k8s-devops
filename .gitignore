@@ -5,3 +5,4 @@ node_modules
 dist/
 
 .k8s-cdk/
+.env

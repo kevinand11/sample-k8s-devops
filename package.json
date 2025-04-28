@@ -2,12 +2,13 @@
   "name": "@devops/root",
   "version": "1.0.0",
   "scripts": {
-    "k8s": "tsx src/index.ts"
+    "k8s": "NODE_OPTIONS='-r dotenv/config' tsx src/index.ts"
   },
   "dependencies": {
     "@devops/k8s-cdk": "workspace:^"
   },
   "devDependencies": {
-    "@types/node": "^22.15.2"
+    "@types/node": "^22.15.2",
+    "dotenv": "^16.5.0"
   }
 }
