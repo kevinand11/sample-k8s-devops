@@ -1,40 +1,31 @@
-import { App, Chart, ChartProps } from 'cdk8s'
+import { App, Chart } from 'cdk8s'
 import { Namespace } from 'cdk8s-plus-32'
-import { Construct } from 'constructs'
 
-export interface K8sChartProps extends ChartProps {
+export interface K8sChartProps {
 	namespace: string
 }
 
 const labelKey = 'k8s.chart.scope'
 
-export class K8sChart extends Construct {
+export class K8sChart extends Chart {
 	readonly app: App
-	readonly chart: Chart
-	readonly #props: K8sChartProps
+	readonly namespace: string
 
-	constructor (readonly id: string, props: K8sChartProps) {
+	constructor (id: string, props: K8sChartProps) {
 		const app = new App()
-		const chart = new Chart(app, id, {
-			...props,
+		super(app, id, {
 			disableResourceNameHashes: true,
 			labels: { [labelKey]: `${props.namespace}-${id}` }
 		})
-		new Namespace(chart, `${props.namespace}-namespace`, {
+		new Namespace(this, `${props.namespace}-namespace`, {
 			metadata: { name: props.namespace }
-		 })
-		super(chart, id)
-		this.#props = props
+		})
+		this.namespace = props.namespace
 		this.app = app
-		this.chart = chart
-	}
-
-	get namespace () {
-		return this.#props.namespace
 	}
 
 	get selector () {
-		return `${labelKey}=${this.chart.labels[labelKey]}`
+		return `${labelKey}=${this.labels[labelKey]}`
 	}
 
 	resolve (name: string) {

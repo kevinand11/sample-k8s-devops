@@ -16,7 +16,7 @@ export class K8sApp {
 			.description('list charts')
 			.action(async (options) => {
 				const charts = this.#filterCharts(options)
-				const data = charts.map((chart) => ({ Id: chart.id, Name: chart.constructor.name, Namespace: chart.namespace  }))
+				const data = charts.map((chart) => ({ Id: chart.node.id, Name: chart.constructor.name, Namespace: chart.namespace  }))
 				console.table(data)
 			})
 
@@ -68,9 +68,9 @@ export class K8sApp {
 		const include = options?.include?.split(',').filter(Boolean) ?? []
 		const exclude = options?.exclude?.split(',').filter(Boolean) ?? []
 		return this.charts.filter((chart) => {
-			if (exclude.includes(chart.id)) return false
+			if (exclude.includes(chart.node.id)) return false
 			if (!include.length) return true
-			return include.includes(chart.id)
+			return include.includes(chart.node.id)
 		})
 	}
 
@@ -78,13 +78,13 @@ export class K8sApp {
 		const k8sNodes = chart.app.node.findAll().filter((node) => node instanceof K8sConstruct)
 		if (deploy) await Promise.all(k8sNodes.map((node) => node.deploy()))
 		const result = chart.app.synthYaml()
-		await fs.writeFile(path.resolve(toolFolder, `${chart.chart.node.id}.yaml`), result)
+		await fs.writeFile(path.resolve(toolFolder, `${chart.node.id}.yaml`), result)
 		return result
 	}
 
 	async #applyChart (chart: K8sChart, options: ApplyOptions) {
 		const result = await this.#synthChart(chart, options, !options?.skipImageBuilds)
-		if (options.fresh) this.#deleteChart(chart, { ...options, chartId: chart.id })
+		if (options.fresh) this.#deleteChart(chart, { ...options, chartId: chart.node.id })
 		await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
 	}
 

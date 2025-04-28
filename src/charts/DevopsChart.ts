@@ -84,7 +84,10 @@ export class DevopsChart extends K8sChart {
       version: '16.5.2',
       values: {
         architecture: 'replicaset',
-        auth,
+        auth: {
+          ...auth,
+          replicaSetKey: replicaSetName
+        },
         replicaCount: replicas,
         replicaSetName,
       },
