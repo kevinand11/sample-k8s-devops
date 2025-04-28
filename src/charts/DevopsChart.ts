@@ -46,6 +46,10 @@ export class DevopsChart extends K8sChart {
     const traefik = new K8sTraefikHelm(this, 'traefik-controller', {
       values: {
         ports: {
+          traefik: {
+            expose: { default: true },
+            exposedPort: 90,
+          },
           web: {
             redirections: {
               entryPoint: {
@@ -63,12 +67,20 @@ export class DevopsChart extends K8sChart {
         ingressRoute: {
           dashboard: {
             enabled: true,
-            entryPoints: ['web', 'websecure']
           }
         },
       },
       installCRDs: true,
     })
+
+    new Deployment(this, 'traefik-whoami', {
+      replicas: 1,
+      containers: [{
+        image: 'traefik/whoami:latest',
+        portNumber: 80,
+        securityContext: { ensureNonRoot: false, user: 0 },
+      }]
+    }).exposeViaIngress('/')
   }
 
   createMongo () {
