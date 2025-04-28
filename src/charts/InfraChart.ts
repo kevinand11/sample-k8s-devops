@@ -1,5 +1,5 @@
 import { K8sCertManagerHelm, K8sChart, K8sChartProps } from '@devops/k8s-cdk'
-import { Issuer } from '@devops/k8s-cdk/cert-manager'
+import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
@@ -17,7 +17,7 @@ export class InfraChart extends K8sChart {
   constructor(private readonly props: InfraChartProps) {
     super('infra', props);
 
-    this.certSecretName = this.getFullName(`cert-manager-certifcate-secret`)
+    this.certSecretName = this.getFullName(`cert-manager-certificate-secret`)
     this.createCertificate()
   }
 
@@ -73,7 +73,7 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    /* new Certificate(this, 'cert-manager-certificate', {
+    new Certificate(this, 'cert-manager-certificate', {
       spec: {
         secretName: this.certSecretName,
         issuerRef: {
@@ -83,6 +83,6 @@ export class InfraChart extends K8sChart {
         commonName: domainName,
         dnsNames: [domainName, wildcard ? `*.${domainName}` : ''].filter(Boolean)
       }
-    }) */
+    })
   }
 }
