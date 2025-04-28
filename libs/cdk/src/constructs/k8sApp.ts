@@ -12,8 +12,7 @@ export class K8sApp {
 	command: Command
 
 	constructor (private readonly charts: K8sChart[]) {
-		const listCommand = new Command()
-			.command('list')
+		const listCommand = new Command('list')
 			.description('list charts')
 			.action(async (options) => {
 				const charts = this.#filterCharts(options)
@@ -21,16 +20,13 @@ export class K8sApp {
 				console.table(data)
 			})
 
-		const synthCommand = new Command()
-			.command('synth')
+		const synthCommand = new Command('synth')
 			.description('generate yaml representation of code')
-			.option('-q --quiet', 'silent', false)
 			.action(async (options) => {
 				for (const chart of this.#filterCharts(options)) await this.#synthChart(chart, options)
 			})
 
-		const applyCommand = new Command()
-			.command('apply')
+		const applyCommand = new Command('apply')
 			.description('apply code changes to k8s cluster')
 			.option('--fresh', 'run fresh installation', false)
 			.option('--skip-image-builds', 'force skip image builds', false)
@@ -38,22 +34,22 @@ export class K8sApp {
 				for (const chart of this.#filterCharts(options)) await this.#applyChart(chart, options)
 			})
 
-		const diffCommand = new Command()
-			.command('diff')
+		const diffCommand = new Command('diff')
 			.description('show diff between code and k8s cluster')
 			.action(async (options) => {
 				for (const chart of this.#filterCharts(options)) await this.#diffChart(chart, options)
 			})
 
-		this.command = new Command()
-			.name('k8s-cli')
+		this.command = new Command('k8s-cli')
 			.description('Cli to manage your k8s application')
-			.option('--include', 'include charts in this list', '')
-			.option('--exclude', 'exclude charts in this list', '')
-			.addCommand(listCommand)
-			.addCommand(synthCommand)
-			.addCommand(applyCommand)
-			.addCommand(diffCommand)
+
+		const commands = [listCommand, synthCommand, applyCommand, diffCommand]
+		commands.forEach((c) => {
+			c
+				.option('--include <include>', 'include charts in this list', '')
+				.option('--exclude <exclude>', 'exclude charts in this list', '')
+			this.command.addCommand(c)
+		})
 	}
 
 	process () {
