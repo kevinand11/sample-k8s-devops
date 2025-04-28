@@ -3,8 +3,9 @@ import { Construct } from 'constructs'
 
 export interface K8sChartProps extends ChartProps {
 	namespace: string
-	applySetName?: string
 }
+
+const labelKey = 'k8s.chart.scope'
 
 export class K8sChart extends Construct {
 	readonly app: App
@@ -16,6 +17,7 @@ export class K8sChart extends Construct {
 		const chart = new Chart(app, id, {
 			...props,
 			disableResourceNameHashes: true,
+			labels: { [labelKey]: `${props.namespace}-${id}` }
 		})
 		super(chart, id)
 		this.#props = props
@@ -27,8 +29,8 @@ export class K8sChart extends Construct {
 		return this.#props.namespace
 	}
 
-	get applySetName () {
-		return this.#props.applySetName ?? `${this.#props.namespace}-${this.chart.node.id}-apply-set`
+	get selector () {
+		return `${labelKey}=${this.chart.labels[labelKey]}`
 	}
 
 	getFullName (name: string) {

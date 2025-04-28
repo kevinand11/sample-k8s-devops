@@ -34,8 +34,7 @@ export class InfraChart extends K8sChart {
           dnsConfig: {
             nameservers: ['1.1.1.1', '9.9.9.9']
           }
-        },
-        rbac: { create: false }
+        }
       },
     })
 

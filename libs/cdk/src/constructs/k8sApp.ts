@@ -81,12 +81,12 @@ export class K8sApp {
 		const result = await this.#synthChart(chart, options, !options?.skipImageBuilds)
 		if (options.fresh) await exec(`kubectl delete ns ${chart.namespace} || true`)
 		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
-		await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${chart.applySetName} -f -`, result)
+		await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
 	}
 
 	async #diffChart (chart: K8sChart, options: DiffOptions) {
 		const result = await this.#synthChart(chart, options)
-		await exec(`kubectl diff --prune -n=${chart.namespace} -f -`, result, true)
+		await exec(`kubectl diff --prune -l=${chart.selector} -f -`, result, true)
 	}
 }
 
