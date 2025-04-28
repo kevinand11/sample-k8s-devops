@@ -16,7 +16,7 @@ export class K8sDockerPlatform {
 	}
 }
 
-export interface LocalDockerImageProps {
+export interface Ks8DockerImageProps {
 	name: string
 	tag?: string
 	build: string | {
@@ -27,10 +27,11 @@ export interface LocalDockerImageProps {
 		args?: Record<string, string>
 		tags?: Record<string, string>
 	}
+	hooks?: Partial<Record<'pre:build' | 'post:build' | 'pre:deploy' | 'post:deploy', () => Promise<void>>>
 }
 
 export class K8sDockerImage extends K8sConstruct {
-	constructor (scope: K8sChart, id: string, private readonly props: LocalDockerImageProps) {
+	constructor (scope: K8sChart, id: string, private readonly props: Ks8DockerImageProps) {
 		super(scope, id)
 	}
 
@@ -69,7 +70,11 @@ export class K8sDockerImage extends K8sConstruct {
 	}
 
 	async deploy () {
+		await this.props.hooks?.['pre:build']?.()
 		await this.#build()
+		await this.props.hooks?.['post:build']?.()
+		await this.props.hooks?.['pre:deploy']?.()
 		await this.#push()
+		await this.props.hooks?.['post:deploy']?.()
 	}
 }
