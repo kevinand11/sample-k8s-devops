@@ -60,10 +60,10 @@ export class DevopsChart extends K8sChart {
   createGateway () {
     new K8sTraefikHelm(this, 'traefik', {
       values: {
-        ports: {
-          web: { asDefault: true },
-          websecure: { asDefault: true }
-        },
+        gateway: { enabled: false },
+        providers: {
+          kubernetesGateway: { enabled: true },
+        }
       },
     })
 
@@ -74,8 +74,8 @@ export class DevopsChart extends K8sChart {
     return new K8sGateway(this, 'gateway', {
       gatewayClass: { controllerName: 'traefik.io/gateway-controller' },
       listeners: [
-        { name: 'http', port: 80, protocol: 'HTTP' },
-        { name: 'https', port: 443, protocol: 'HTTPS', tls },
+        { name: 'http', port: 8000, protocol: 'HTTP' },
+        { name: 'https', port: 8443, protocol: 'HTTPS', tls },
       ],
     })
   }
