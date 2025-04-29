@@ -1,5 +1,5 @@
-import { K8sCertManagerHelm, K8sChart, K8sChartProps, K8sDomainProps, K8sDomain } from '@devops/k8s-cdk/k8s'
 import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
+import { K8sCertManagerHelm, K8sChart, K8sChartProps, K8sDomain, K8sDomainProps } from '@devops/k8s-cdk/k8s'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
@@ -48,7 +48,7 @@ export class InfraChart extends K8sChart {
       spec: {
         acme: {
           email: certEmail,
-          server: 'https://acme-staging-v02.api.letsencrypt.org/directory', // TODO remove staging after testing
+          server: 'https://acme-v02.api.letsencrypt.org/directory',
           privateKeySecretRef: {
             name: this.resolve('cert-manager-issuer-private-key-secret'),
           },
