@@ -1,4 +1,5 @@
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm, K8sDomainProps } from '@devops/k8s-cdk/k8s'
+import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sDomainProps, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm } from '@devops/k8s-cdk/k8s'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
 import path from 'node:path'
@@ -12,37 +13,55 @@ export class DevopsChart extends K8sChart {
   constructor(props: DevopsChartProps) {
     super('devops', props);
 
-    new K8sDockerImage(this, 'docker', {
-      name: 'kevinand11/k8s-demo-app',
-      build: {
-        context: path.resolve(__dirname, '../app'),
-        platforms: [K8sDockerPlatform.LINUX_AMD64]
-      }
-    })
-
-    const { publicService: mongoExpressService } = this.createMongo()
-    const { publicService: redisCommanderService } = this.createRedis()
-    const { publicService: kafkaUiService } = this.createKafka()
-    const { publicService: whoamiService } = this.createTraefik()
-
     const domain = new K8sDomain(props.domain)
     const gateway = this.createGateway(props.certificate)
 
+    const { service: mongoUiService } = this.createMongo()
+    const { service: redisUiService } = this.createRedis()
+    const { service: kafkaUiService } = this.createKafka()
+    const { service: appService } = this.createApp()
+
     const routes = [
-      { name: 'whoami', service: whoamiService, host: domain.base },
-      { name: 'mongo', service: mongoExpressService, host: domain.sub('mongo') },
-      { name: 'redis', service: redisCommanderService, host: domain.sub('redis') },
+      { name: 'app', service: appService, host: domain.base },
+      { name: 'mongo', service: mongoUiService, host: domain.sub('mongo') },
+      { name: 'redis', service: redisUiService, host: domain.sub('redis') },
       { name: 'kafka', service: kafkaUiService, host: domain.sub('kafka') },
     ]
 
-    for (const route of routes) gateway.addRoute(
-      `${route.name}-route`,
-      { name: route.service.name, port: route.service.port },
-      { host: route.host }
+    for (const route of routes) {
+      gateway.addRoute(
+        `${route.name}-http-route`,
+        { name: route.service.name, port: route.service.port },
+        { listener: 'http', host: route.host, redirect: { scheme: HttpRouteSpecRulesFiltersRequestRedirectScheme.HTTPS } }
+      )
+      gateway.addRoute(
+        `${route.name}-https-route`,
+        { name: route.service.name, port: route.service.port },
+        { listener: 'https', host: route.host }
+      )
+    }
+
+    gateway.addRoute(
+      `traefik-dashboard-route`,
+      { name: 'api@internal', kind: 'TraefikService' },
+      { listener: 'traefik', host: domain.sub('traefik') }
     )
   }
 
   createGateway (certificate: DevopsChartProps['certificate']) {
+    new K8sTraefikHelm(this, 'traefik', {
+      values: {
+        ports: {
+          traefik: {
+            expose: { default: true },
+            exposedPort: 90,
+          },
+          web: { asDefault: true },
+          websecure: { asDefault: true }
+        },
+      },
+    })
+
     new K8sGatewayCRDs(this, 'gateway-crds')
 
     const tls = certificate ? {
@@ -57,49 +76,6 @@ export class DevopsChart extends K8sChart {
         { name: 'traefik', port: 90, protocol: 'HTTP', tls }
       ],
     })
-  }
-
-  createTraefik () {
-    new K8sTraefikHelm(this, 'traefik-controller', {
-      values: {
-        ports: {
-          traefik: {
-            expose: { default: true },
-            exposedPort: 90,
-          },
-          web: {
-            redirections: {
-              entryPoint: {
-                to: 'websecure',
-                scheme: 'https',
-                permanent: true,
-              }
-            },
-            asDefault: true,
-          },
-          websecure: {
-            asDefault: true,
-          }
-        },
-        ingressRoute: {
-          dashboard: {
-            enabled: true,
-          }
-        },
-      },
-      installCRDs: true,
-    })
-
-    const publicService = new Deployment(this, 'traefik-whoami', {
-      replicas: 1,
-      containers: [{
-        image: 'traefik/whoami:latest',
-        portNumber: 80,
-        securityContext: { ensureNonRoot: false, user: 0 },
-      }]
-    }).exposeViaService()
-
-    return { publicService }
   }
 
   createMongo () {
@@ -146,7 +122,7 @@ export class DevopsChart extends K8sChart {
       }]
     }).exposeViaService()
 
-    return { url, publicService }
+    return { url, service: publicService }
   }
 
   createRedis () {
@@ -183,7 +159,7 @@ export class DevopsChart extends K8sChart {
       }]
     }).exposeViaService()
 
-    return { redisUrl, publicService }
+    return { redisUrl, service: publicService }
   }
 
   createKafka () {
@@ -238,7 +214,7 @@ export class DevopsChart extends K8sChart {
       }]
     }).exposeViaService()
 
-    return { values, debeziumUrl, publicService }
+    return { values, debeziumUrl, service: publicService }
   }
 
   createDebezium (values: KafkaValues) {
@@ -268,6 +244,27 @@ export class DevopsChart extends K8sChart {
     const url = `http://${service.name}:${service.port}`
 
     return { url }
+  }
+
+  createApp () {
+    new K8sDockerImage(this, 'docker', {
+      name: 'kevinand11/k8s-demo-app',
+      build: {
+        context: path.resolve(__dirname, '../app'),
+        platforms: [K8sDockerPlatform.LINUX_AMD64]
+      }
+    })
+
+    const service = new Deployment(this, 'traefik-whoami', {
+      replicas: 1,
+      containers: [{
+        image: 'traefik/whoami:latest',
+        portNumber: 80,
+        securityContext: { ensureNonRoot: false, user: 0 },
+      }]
+    }).exposeViaService()
+
+    return { service }
   }
 }
 

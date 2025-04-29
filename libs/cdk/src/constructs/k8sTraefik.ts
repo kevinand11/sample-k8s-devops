@@ -62,15 +62,13 @@ export class K8sTraefikMiddleware extends Middleware {
   }
 }
 
-export interface K8sTraefikHelmProps extends Omit<K8sHelmProps, 'chart' | 'version'> {
-  installCRDs?: boolean
-}
+export interface K8sTraefikHelmProps extends Omit<K8sHelmProps, 'chart' | 'version'> {}
 
 
 export class K8sTraefikHelm extends K8sHelm {
-  constructor (scope: K8sChart, id: string, { installCRDs, ...rest }: K8sTraefikHelmProps) {
+  constructor (scope: K8sChart, id: string, props: K8sTraefikHelmProps) {
     super(scope, id, {
-      ...rest,
+      ...props,
       chart: 'traefik',
       repo: 'https://traefik.github.io/charts',
       version: '35.1.0',
