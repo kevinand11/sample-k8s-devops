@@ -56,6 +56,26 @@ export class DevopsChart extends K8sChart {
         host: domain.sub('traefik')
       }
     )
+
+    gateway.addRoute(
+      `traefik-ping-route`,
+      {
+        listener: 'https',
+        backend: { name: 'ping@internal', kind: 'TraefikService' },
+        host: domain.sub('traefik'),
+        path: '/ping'
+      }
+    )
+
+    gateway.addRoute(
+      `traefik-metrics-route`,
+      {
+        listener: 'https',
+        backend: { name: 'prometheus@internal', kind: 'TraefikService' },
+        host: domain.sub('traefik'),
+        path: '/metrics'
+      }
+    )
   }
 
   createGateway () {
