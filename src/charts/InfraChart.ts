@@ -1,11 +1,13 @@
 import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
-import { K8sCertManagerHelm, K8sChart, K8sChartProps, K8sDomain, K8sDomainProps } from '@devops/k8s-cdk/k8s'
+import { ReferenceGrant } from '@devops/k8s-cdk/gateway'
+import { K8sCertManagerHelm, K8sChart, K8sChartProps, K8sDomain, K8sDomainProps, K8sGatewayCRDs } from '@devops/k8s-cdk/k8s'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
   certEmail: string
   cloudflareApiToken: string
   domain: K8sDomainProps
+  knownNamespaces: string[]
 }
 
 export class InfraChart extends K8sChart {
@@ -17,6 +19,20 @@ export class InfraChart extends K8sChart {
     this.domain = new K8sDomain(props.domain)
     this.certificateName = this.resolve(`cert-manager-certificate-secret`)
     this.createCertificate(this.certificateName)
+    this.createReferenceGrants()
+  }
+
+  createReferenceGrants () {
+    new K8sGatewayCRDs(this, 'gateway-crds')
+
+    for (const ns of this.props.knownNamespaces) {
+      new ReferenceGrant(this, `${ns}-reference-grant`, {
+        spec: {
+          from: [{ group: 'gateway.networking.k8s.io', kind: 'Gateway', namespace: ns }],
+          to: [{ group: '', kind: 'Secret' }]
+        }
+      })
+    }
   }
 
   createCertificate (certSecretName: string) {

@@ -15,7 +15,8 @@ const infraChart = new InfraChart({
   namespace: 'infra',
   certEmail: domainCertEmail,
   cloudflareApiToken,
-  domain: { name: domainName, wildcard: true }
+  domain: { name: domainName, wildcard: true },
+  knownNamespaces: ['dev'],
 })
 
 const devopsChart = new DevopsChart({

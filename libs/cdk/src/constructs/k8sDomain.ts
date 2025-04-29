@@ -23,7 +23,7 @@ export class K8sDomain {
 		return [sub, name].filter(Boolean).join(wildcard ? '.' : '-')
 	}
 
-	scope (scope: string): K8sDomainProps {
+	scope (scope?: string): K8sDomainProps {
 		return {
 			...this.props,
 			name: this.#calc(scope)
