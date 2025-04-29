@@ -90,7 +90,13 @@ export class K8sApp {
 		// await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
 		const applySetName = `configmaps/${chart.namespace}-${chart.node.id}`
 		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
-		await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${applySetName} -f -`, result)
+		await this.#runWithTrials(
+			async (trial: number) => {
+				if (trial > 1) console.log('\n\n\n\n\nRetrying')
+				await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${applySetName} -f -`, result)
+			},
+			{ tries: 3, delayMs: 2000 }
+		)
 	}
 
 	async #diffChart (chart: K8sChart, options: DiffOptions) {
@@ -103,6 +109,19 @@ export class K8sApp {
 		// const result = res ?? await this.#synthChart(chart, options)
 		// await exec(`kubectl delete -l=${chart.selector} --wait --ignore-not-found -f -`, result)
 		await exec(`kubectl delete ns ${chart.namespace} --wait --ignore-not-found`)
+	}
+
+	async #runWithTrials<T extends (trial: number) => any> (fn: T, opts: { tries: number, delayMs: number }) {
+		let error: Error | undefined
+		for (const trial of new Array(opts.tries).fill(0).map((_, i) => i + 1)) {
+			try {
+				return await fn(trial)
+			} catch (err) {
+				await new Promise<void>((res) => setTimeout(res, opts.delayMs))
+				error = err
+			}
+		}
+		throw error ?? new Error('failed to execute trials')
 	}
 }
 
