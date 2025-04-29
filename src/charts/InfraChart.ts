@@ -1,41 +1,22 @@
-import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
-import { ReferenceGrant } from '@devops/k8s-cdk/gateway'
-import { K8sCertManagerHelm, K8sChart, K8sChartProps, K8sDomain, K8sDomainProps, K8sGatewayCRDs } from '@devops/k8s-cdk/k8s'
+import { ClusterIssuer } from '@devops/k8s-cdk/cert-manager'
+import { K8sCertManagerHelm, K8sChart, K8sChartProps } from '@devops/k8s-cdk/k8s'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
   certEmail: string
   cloudflareApiToken: string
-  domain: K8sDomainProps
-  knownNamespaces: string[]
 }
 
 export class InfraChart extends K8sChart {
-  readonly domain: K8sDomain
-  readonly certificateName?: string
+  readonly issuer?: ClusterIssuer
 
   constructor(private readonly props: InfraChartProps) {
     super('infra', props)
-    this.domain = new K8sDomain(props.domain)
-    this.certificateName = this.resolve(`cert-manager-certificate-secret`)
-    this.createCertificate(this.certificateName)
-    this.createReferenceGrants()
+    const { issuer } = this.createIssuer()
+    this.issuer = issuer
   }
 
-  createReferenceGrants () {
-    new K8sGatewayCRDs(this, 'gateway-crds')
-
-    for (const ns of this.props.knownNamespaces) {
-      new ReferenceGrant(this, `${ns}-reference-grant`, {
-        spec: {
-          from: [{ group: 'gateway.networking.k8s.io', kind: 'Gateway', namespace: ns }],
-          to: [{ group: '', kind: 'Secret' }]
-        }
-      })
-    }
-  }
-
-  createCertificate (certSecretName: string) {
+  createIssuer () {
     new K8sCertManagerHelm(this, 'cert-manager', {
       values: {
         namespace: this.namespace,
@@ -60,13 +41,13 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    const issuer = new Issuer(this, 'cert-manager-issuer', {
+    const issuer = new ClusterIssuer(this, 'cert-manager-cluster-issuer', {
       spec: {
         acme: {
           email: certEmail,
           server: 'https://acme-v02.api.letsencrypt.org/directory',
           privateKeySecretRef: {
-            name: this.resolve('cert-manager-issuer-private-key-secret'),
+            name: this.resolve('cert-manager-cluster-issuer-private-key-secret'),
           },
           solvers: [
             {
@@ -84,18 +65,6 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    new Certificate(this, 'cert-manager-certificate', {
-      spec: {
-        secretName: certSecretName,
-        issuerRef: {
-          name: issuer.name,
-          kind: issuer.kind,
-        },
-        commonName: this.domain.common,
-        dnsNames: Object.keys({ [this.domain.base]: true, [this.domain.common]: true })
-      }
-    })
-
-    return { certSecretName }
+    return { issuer }
   }
 }

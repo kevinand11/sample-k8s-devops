@@ -1,10 +1,10 @@
 import { execSync } from 'node:child_process'
 
-import { K8sApp } from '@devops/k8s-cdk/k8s'
+import { K8sApp, K8sDomain } from '@devops/k8s-cdk/k8s'
 
 import { DevopsChart } from './charts/DevopsChart'
 import { InfraChart } from './charts/InfraChart'
-import { getRequiredProcessEnv, upsertCloudflareRecord } from './utils'
+import { deleteCloudflareRecord, getRequiredProcessEnv, upsertCloudflareRecord } from './utils'
 
 const cloudflareZoneId = getRequiredProcessEnv('CLOUDFLARE_ZONE_ID')
 const cloudflareApiToken = getRequiredProcessEnv('CLOUDFLARE_API_TOKEN')
@@ -15,29 +15,33 @@ const infraChart = new InfraChart({
   namespace: 'infra',
   certEmail: domainCertEmail,
   cloudflareApiToken,
-  domain: { name: domainName, wildcard: true },
-  knownNamespaces: ['dev'],
 })
+
+const domain = new K8sDomain({ name: domainName, wildcard: true })
 
 const devopsChart = new DevopsChart({
   namespace: 'dev',
-  domain: infraChart.domain.scope('dev'),
-  certificate: infraChart.certificateName ? { name: infraChart.certificateName, namespace: infraChart.namespace } : undefined
+  domain: domain.scope('dev'),
+  issuer: infraChart.issuer ? { name: infraChart.issuer.name, kind: infraChart.issuer.kind } : undefined,
 })
+
+const common = {
+    zoneId: cloudflareZoneId,
+    apiToken: cloudflareApiToken,
+    type: 'A' as const,
+  }
 
 devopsChart.addHook('post:deploy', async () => {
   const ip = getLoadBalancerIP(devopsChart.namespace)
   if (!ip) return
 
-  const common = {
-    zoneId: cloudflareZoneId,
-    apiToken: cloudflareApiToken,
-    type: 'A' as const,
-    ip,
-  }
+  await upsertCloudflareRecord({ ...common, recordName: devopsChart.domain.base, ip })
+  await upsertCloudflareRecord({ ...common, recordName: devopsChart.domain.common, ip })
+})
 
-  await upsertCloudflareRecord({ ...common, recordName: devopsChart.domain.base })
-  await upsertCloudflareRecord({ ...common, recordName: devopsChart.domain.common })
+devopsChart.addHook('post:delete', async () => {
+  await deleteCloudflareRecord({ ...common, recordName: devopsChart.domain.base })
+  await deleteCloudflareRecord({ ...common, recordName: devopsChart.domain.common })
 })
 
 

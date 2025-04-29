@@ -33,6 +33,19 @@ export async function upsertCloudflareRecord({
 	else if (existing.content !== ip) await client.dns.records.update(existing.id, payload)
 }
 
+export async function deleteCloudflareRecord({
+	zoneId,
+	apiToken,
+	type,
+	recordName,
+}: Omit<CloudflareDNSRecordParams, 'ip'>): Promise<void> {
+	const client = new Cloudflare({ apiToken })
+	const records = await client.dns.records.list({ type, zone_id: zoneId, name: { exact: recordName } })
+	const existing = records.result.at(0)
+
+	if (existing) await client.dns.records.delete(existing.id, { zone_id: zoneId })
+}
+
 
 export function getRequiredProcessEnv (name: string) {
 	const value = process.env[name]

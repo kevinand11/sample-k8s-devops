@@ -1,5 +1,6 @@
 import path from 'node:path'
 
+import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
 import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sDomainProps, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm } from '@devops/k8s-cdk/k8s'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
@@ -7,7 +8,7 @@ import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
 
 interface DevopsChartProps extends K8sChartProps {
   domain: K8sDomainProps
-  certificate?: { name: string, namespace: string }
+  issuer?: { name: string, kind: string }
 }
 
 export class DevopsChart extends K8sChart {
@@ -58,6 +59,16 @@ export class DevopsChart extends K8sChart {
   }
 
   createGateway () {
+    const secretName = this.resolve('cert-manager-certificate-secret')
+    const certificate = this.props.issuer ? new Certificate(this, 'cert-manager-certificate', {
+      spec: {
+        secretName,
+        issuerRef: this.props.issuer,
+        commonName: this.domain.common,
+        dnsNames: Object.keys({ [this.domain.base]: true, [this.domain.common]: true })
+      }
+    }) : undefined
+
     new K8sTraefikHelm(this, 'traefik', {
       values: {
         gateway: { enabled: false },
@@ -69,7 +80,7 @@ export class DevopsChart extends K8sChart {
 
     new K8sGatewayCRDs(this, 'gateway-crds')
 
-    const tls = this.props.certificate ? { certificateRefs: [this.props.certificate] } : undefined
+    const tls = certificate ? { certificateRefs: [{ name: secretName }] } : undefined
 
     return new K8sGateway(this, 'gateway', {
       gatewayClass: { controllerName: 'traefik.io/gateway-controller' },
