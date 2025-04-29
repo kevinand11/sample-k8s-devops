@@ -35,7 +35,7 @@ export class K8sDockerImage extends K8sConstruct {
 		super(scope, id)
 
 		Object.entries(props.hooks ?? {}).forEach(([hook, cb]) => this.addHook(hook as K8sConstructHook, cb))
-		this.addHook('pre:deploy', async () => {
+		if (!process.env.K8S_SKIP_DOCKER_IMAGE_BUILDS) this.addHook('pre:deploy', async () => {
 			await this.#buildImage()
 			await this.#pushImage()
 		})

@@ -5,7 +5,7 @@ import { Command } from 'commander'
 
 
 import { K8sChart } from './k8sChart'
-import { createFolderIfNotExists, exec, runWithTrials } from '../common/utils'
+import { createFolderIfNotExists, exec } from '../common/utils'
 
 const toolFolder = path.resolve(process.cwd(), '.k8s-cdk')
 
@@ -89,19 +89,10 @@ export class K8sApp {
 	async #deployChart (chart: K8sChart, options: DeployOptions) {
 		const result = await this.#buildChart(chart, options)
 		await chart.runHook('pre:deploy')
-		if (!options.skipImageBuilds) {
-			// TODO: how to use skip image builds
-		}
 		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id })
 		const applySetName = `configmaps/${chart.namespace}-${chart.node.id}`
 		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
-		await runWithTrials(
-			async (trial: number) => {
-				if (trial > 1) console.log('\n\n\n\n\nRetrying')
-				await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${applySetName} -f -`, result)
-			},
-			{ tries: 3, delayMs: 2000 }
-		)
+		await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${applySetName} -f -`, result)
 		await chart.runHook('post:deploy')
 	}
 
@@ -128,7 +119,6 @@ interface BuildOptions extends CommonOptions {}
 
 interface DeployOptions extends CommonOptions {
 	fresh: boolean
-	skipImageBuilds: boolean
 }
 
 interface DiffOptions extends CommonOptions {}
