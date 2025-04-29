@@ -105,7 +105,7 @@ export class K8sApp {
 
 	async #deleteChart (chart: K8sChart, _options: DeleteOptions) {
 		await chart.runHook('pre:delete')
-		await exec(`kubectl delete ns ${chart.namespace} --wait --ignore-not-found`)
+		await exec(`kubectl delete ns ${chart.namespace} --ignore-not-found`)
 		await chart.runHook('post:delete')
 	}
 }

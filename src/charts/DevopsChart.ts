@@ -33,21 +33,27 @@ export class DevopsChart extends K8sChart {
 
     for (const route of routes) {
       gateway.addRoute(
-        `${route.name}-http-route`,
-        { name: route.service.name, port: route.service.port },
-        { listener: 'http', host: route.host, redirect: { scheme: HttpRouteSpecRulesFiltersRequestRedirectScheme.HTTPS } }
-      )
-      gateway.addRoute(
         `${route.name}-https-route`,
-        { name: route.service.name, port: route.service.port },
-        { listener: 'https', host: route.host }
+        {
+          listener: 'https',
+          backend: { name: route.service.name, port: route.service.port },
+          host: route.host
+        }
       )
     }
 
+    gateway.addRoute(`http-route`, {
+      listener: 'http',
+      redirect: { scheme: HttpRouteSpecRulesFiltersRequestRedirectScheme.HTTPS }
+    })
+
     gateway.addRoute(
       `traefik-dashboard-route`,
-      { name: 'api@internal', kind: 'TraefikService' },
-      { listener: 'traefik', host: domain.sub('traefik') }
+      {
+        listener: 'https',
+        backend: { name: 'api@internal', kind: 'TraefikService' },
+        host: domain.sub('traefik')
+      }
     )
   }
 
@@ -55,10 +61,6 @@ export class DevopsChart extends K8sChart {
     new K8sTraefikHelm(this, 'traefik', {
       values: {
         ports: {
-          traefik: {
-            expose: { default: true },
-            exposedPort: 90,
-          },
           web: { asDefault: true },
           websecure: { asDefault: true }
         },
@@ -72,9 +74,8 @@ export class DevopsChart extends K8sChart {
     return new K8sGateway(this, 'gateway', {
       gatewayClass: { controllerName: 'traefik.io/gateway-controller' },
       listeners: [
-        { name: 'http', port: 80, protocol: 'HTTP', tls },
+        { name: 'http', port: 80, protocol: 'HTTP' },
         { name: 'https', port: 443, protocol: 'HTTPS', tls },
-        { name: 'traefik', port: 90, protocol: 'HTTP', tls }
       ],
     })
   }

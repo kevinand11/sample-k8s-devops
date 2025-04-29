@@ -19,6 +19,7 @@ export interface K8sGatewayRouteProps {
 	listener: string
 	host?: string
 	path?: string
+	backend?: HttpRouteSpecRulesBackendRefs
 	pathType?: HttpRouteSpecRulesMatchesPathType
 	redirect?: HttpRouteSpecRulesFiltersRequestRedirect
 }
@@ -34,15 +35,17 @@ export class K8sGateway extends Gateway {
 		})
 	}
 
-	addRoute (id: string, backend: HttpRouteSpecRulesBackendRefs, route: K8sGatewayRouteProps) {
+	addRoute (id: string, route: K8sGatewayRouteProps) {
 		if (route?.listener) {
 			const listener = this.gatewayProps.listeners.find((l) => l.name === route.listener)
 			if (!listener) throw new Error(`${route.listener} is not a registered listener for ${this.name}`)
 		}
 
+		const backends: HttpRouteSpecRulesBackendRefs[] = []
 		const matches: HttpRouteSpecRulesMatches[] = []
 		const filters: HttpRouteSpecRulesFilters[] = []
 
+		if (route.backend) backends.push(route.backend)
 		if (route.path) matches.push({ path: { type: route.pathType ?? HttpRouteSpecRulesMatchesPathType.PATH_PREFIX, value: route.path } })
 		if (route.redirect) filters.push({ type: HttpRouteSpecRulesFiltersType.REQUEST_REDIRECT, requestRedirect: route.redirect })
 
@@ -52,9 +55,9 @@ export class K8sGateway extends Gateway {
 				...(route?.host ? { hostnames: [route.host] } : {}),
 				rules: [
 					{
-						...(matches.length ? { matches } : undefined),
-						...(filters.length ? { filters } : undefined),
-						backendRefs: [backend],
+						...(matches.length ? { matches } : {}),
+						...(filters.length ? { filters } : {}),
+						...(backends.length ? { backendRefs: backends } : {}),
 					}
 				]
 			}
