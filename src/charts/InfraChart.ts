@@ -1,21 +1,31 @@
-import { K8sCertManagerHelm, K8sChart, K8sChartProps } from '@devops/k8s-cdk'
-import { ClusterIssuer } from '@devops/k8s-cdk/cert-manager'
+import { K8sCertManagerHelm, K8sChart, K8sChartProps, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk'
+import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
-  certEmail: string;
+  certEmail: string
   cloudflareApiToken: string
+  domain: Ks8DomainProps
 }
 
 export class InfraChart extends K8sChart {
-  readonly issuer: ClusterIssuer
-  constructor(private readonly props: InfraChartProps) {
-    super('infra', props);
-    const { issuer } = this.createIssuer()
-    this.issuer = issuer
+  readonly domain: KsDomain
+  readonly certificate: {
+    name: string
+    namespace: string
   }
 
-  createIssuer () {
+  constructor(private readonly props: InfraChartProps) {
+    super('infra', props);
+    const { certSecretName } = this.createCertificate()
+    this.domain = new KsDomain(props.domain)
+    this.certificate = {
+      name: certSecretName,
+      namespace: this.namespace
+    }
+  }
+
+  createCertificate () {
     new K8sCertManagerHelm(this, 'cert-manager', {
       values: {
         namespace: this.namespace,
@@ -40,11 +50,11 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    const issuer = new ClusterIssuer(this, 'cert-manager-cluster-issuer', {
+    const issuer = new Issuer(this, 'cert-manager-cluster-issuer', {
       spec: {
         acme: {
           email: certEmail,
-          server: 'https://acme-v02.api.letsencrypt.org/directory',
+          server: 'https://acme-staging-v02.api.letsencrypt.org/directory', // TODO remove staging after testing
           privateKeySecretRef: {
             name: this.resolve('cert-manager-issuer-private-key-secret'),
           },
@@ -64,6 +74,20 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    return { issuer }
+    const certSecretName = this.resolve(`cert-manager-issuer-certificate-secret`)
+
+    new Certificate(this, 'certificate', {
+      spec: {
+        secretName: certSecretName,
+        issuerRef: {
+          name: issuer.name,
+          kind: issuer.kind,
+        },
+        commonName: this.domain.common,
+        dnsNames: [this.domain.base, this.domain.common]
+      }
+    })
+
+    return { certSecretName }
   }
 }

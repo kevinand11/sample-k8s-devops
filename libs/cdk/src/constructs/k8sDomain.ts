@@ -1,16 +1,13 @@
 export interface Ks8DomainProps {
-	scope?: string
-	domain: {
-		name: string
-		wildcard?: boolean
-	}
+	name: string
+	wildcard?: boolean
 }
 
 export class KsDomain {
 	constructor (private readonly props: Ks8DomainProps) { }
 
 	get common () {
-		return this.#calc(this.props.domain.wildcard ? '*' : undefined)
+		return this.#calc(this.props.wildcard ? '*' : undefined)
 	}
 
 	get base () {
@@ -22,7 +19,14 @@ export class KsDomain {
 	}
 
 	#calc (sub?: string) {
-		const { scope, domain: { name, wildcard } } = this.props
-		return [sub, scope, name].filter(Boolean).join(wildcard ? '.' : '-')
+		const { name, wildcard } = this.props
+		return [sub, name].filter(Boolean).join(wildcard ? '.' : '-')
+	}
+
+	scope (scope: string) {
+		return new KsDomain({
+			...this.props,
+			name: this.#calc(scope)
+		})
 	}
 }

@@ -1,9 +1,10 @@
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk'
-import { Certificate } from '@devops/k8s-cdk/cert-manager'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm, KsDomain } from '@devops/k8s-cdk'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
-import { IngressRoute, IngressRouteSpecRoutesServicesKind, IngressRouteSpecRoutesServicesPort } from '@devops/k8s-cdk/traefik'
 import path from 'node:path'
+
+import { InfraChart } from './InfraChart'
+import { Gateway } from '@devops/k8s-cdk/gateway'
 
 type KafkaValues = {
   host: string
@@ -15,17 +16,16 @@ type KafkaValues = {
 }
 
 interface DevopsChartProps extends K8sChartProps {
-  domain: Ks8DomainProps
-  issuer: { name: string, kind: string }
+  infra: InfraChart
 }
 
 export class DevopsChart extends K8sChart {
   private readonly domain: KsDomain
 
-  constructor(private readonly props: DevopsChartProps) {
+  constructor(props: DevopsChartProps) {
     super('devops', props);
 
-    this.domain = new KsDomain(props.domain)
+    const domain = props.infra.domain.scope(this.namespace)
 
     const image = new K8sDockerImage(this, 'docker', {
       name: 'kevinand11/k8s-demo-app',
@@ -39,30 +39,15 @@ export class DevopsChart extends K8sChart {
     const { publicService: redisCommanderService } = this.createRedis()
     const { publicService: kafkaUiService } = this.createKafka()
     this.createRouter([
-      { service: mongoExpressService, host: this.domain.sub('mongo') },
-      { service: redisCommanderService, host: this.domain.sub('redis') },
-      { service: kafkaUiService, host: this.domain.sub('kafka') }
+      { service: mongoExpressService, host: domain.sub('mongo') },
+      { service: redisCommanderService, host: domain.sub('redis') },
+      { service: kafkaUiService, host: domain.sub('kafka') }
     ])
-  }
-
-  createCertificate () {
-    const certSecretName = this.resolve(`cert-manager-issuer-certificate-secret`)
-
-    new Certificate(this, 'certificate', {
-      spec: {
-        secretName: certSecretName,
-        issuerRef: this.props.issuer,
-        commonName: this.domain.common,
-        dnsNames: [this.domain.base, this.domain.common]
-      }
-    })
-
-    return { secretName: certSecretName }
   }
 
   createRouter (routes: { service: Service, host: string }[]) {
     new K8sGatewayCRDs(this, 'gateway-crds')
-    new K8sTraefikHelm(this, 'traefik-controller', {
+    const traefik = new K8sTraefikHelm(this, 'traefik-controller', {
       values: {
         ports: {
           traefik: {
@@ -95,7 +80,6 @@ export class DevopsChart extends K8sChart {
       installCRDs: true,
     })
 
-
     const service = new Deployment(this, 'traefik-whoami', {
       replicas: 1,
       containers: [{
@@ -105,20 +89,26 @@ export class DevopsChart extends K8sChart {
       }]
     }).exposeViaService()
 
-    const { secretName } = this.createCertificate()
+    const allRoutes = routes.concat({ service, host: this.domain.base })
 
-    new IngressRoute(this, 'router', {
-      metadata: {},
+    const gateway = new Gateway(this, 'gateway', {
       spec: {
-        routes: routes
-          .concat({ service, host: this.domain.base })
-          .map(({ service, host }) => ({
-            match: `Host(\`${host}\`)`,
-            services: [{ kind: IngressRouteSpecRoutesServicesKind.SERVICE, name: service.name, port: IngressRouteSpecRoutesServicesPort.fromNumber(service.port) }]
-          })),
-        tls: { secretName }
+        gatewayClassName: traefik.gatewayClass!.name,
+        // TODO: add gateway route
+        listeners: [],
       }
     })
+
+    /* new IngressRoute(this, 'router', {
+      metadata: {},
+      spec: {
+        routes: allRoutes.map(({ service, host }) => ({
+          match: `Host(\`${host}\`)`,
+          services: [{ kind: IngressRouteSpecRoutesServicesKind.SERVICE, name: service.name, port: IngressRouteSpecRoutesServicesPort.fromNumber(service.port) }]
+        })),
+        tls: { secretName }
+      }
+    }) */
   }
 
   createMongo () {

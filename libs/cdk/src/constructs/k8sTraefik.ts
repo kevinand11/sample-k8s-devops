@@ -1,6 +1,7 @@
 import { ApiObject } from 'cdk8s'
 import { Resource } from 'cdk8s-plus-32'
 import { Construct } from 'constructs'
+import { Gateway, GatewayClass } from '../../imports/gateway.networking.k8s.io'
 import { Middleware, MiddlewareSpec } from '../../imports/traefik.io'
 import { K8sChart } from './k8sChart'
 import { K8sHelm, K8sHelmProps } from './k8sHelm'
@@ -75,5 +76,13 @@ export class K8sTraefikHelm extends K8sHelm {
       repo: 'https://traefik.github.io/charts',
       version: '35.1.0',
     })
+  }
+
+  get gatewayClass() {
+    return this.getTypedObject<GatewayClass>((o) => o.kind === 'GatewayClass')
+  }
+
+  get gateway() {
+    return this.getTypedObject<Gateway>((o) => o.kind === 'Gateway')
   }
 }
