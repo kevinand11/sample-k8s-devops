@@ -26,7 +26,20 @@ export async function exec (command: string, injectInput?: string, allowNonZeroC
 export async function createFolderIfNotExists(folderPath: string) {
   try {
     await access(folderPath, constants.F_OK);
-  } catch (err) {
+  } catch {
     await mkdir(folderPath, { recursive: true });
   }
+}
+
+export async function runWithTrials<T extends (trial: number) => any> (fn: T, opts: { tries: number, delayMs: number }) :Promise<Awaited<ReturnType<T>>> {
+	let error: Error | undefined
+	for (const trial of new Array(opts.tries).fill(0).map((_, i) => i + 1)) {
+		try {
+			return await fn(trial)
+		} catch (err) {
+			error = err
+			await new Promise<void>((res) => setTimeout(res, opts.delayMs))
+		}
+	}
+	throw error ?? new Error('failed to execute trials')
 }

@@ -249,6 +249,7 @@ export class DevopsChart extends K8sChart {
   createApp () {
     new K8sDockerImage(this, 'docker', {
       name: 'kevinand11/k8s-demo-app',
+      tag: 'latest',
       build: {
         context: path.resolve(__dirname, '../app'),
         platforms: [K8sDockerPlatform.LINUX_AMD64]

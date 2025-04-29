@@ -1,10 +1,10 @@
 import { Command } from 'commander'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import { createFolderIfNotExists, exec } from '../common/utils'
+
+import { createFolderIfNotExists, exec, runWithTrials } from '../common/utils'
 
 import { K8sChart } from './k8sChart'
-import { K8sConstruct } from './k8sConstruct'
 
 const toolFolder = path.resolve(process.cwd(), '.k8s-cdk')
 
@@ -20,20 +20,20 @@ export class K8sApp {
 				console.table(data)
 			})
 
-		const synthCommand = new Command('synth')
-			.description('generate yaml representation of code')
-			.action(async (options: SynthOptions) => {
+		const buildCommand = new Command('build')
+			.description('build yaml representation of code')
+			.action(async (options: BuildOptions) => {
 				await fs.rm(toolFolder, { recursive: true, force: true })
 				await createFolderIfNotExists(toolFolder)
-				for (const chart of this.#filterCharts(options)) await this.#synthChart(chart, options)
+				for (const chart of this.#filterCharts(options)) await this.#buildChart(chart, options)
 			})
 
-		const applyCommand = new Command('apply')
-			.description('apply code changes to k8s cluster')
+		const deployCommand = new Command('deploy')
+			.description('deploy code changes to k8s cluster')
 			.option('--fresh', 'run fresh installation', false)
 			.option('--skip-image-builds', 'force skip image builds', false)
-			.action(async (options: ApplyOptions) => {
-				for (const chart of this.#filterCharts(options)) await this.#applyChart(chart, options)
+			.action(async (options: DeployOptions) => {
+				for (const chart of this.#filterCharts(options)) await this.#deployChart(chart, options)
 			})
 
 		const diffCommand = new Command('diff')
@@ -53,7 +53,7 @@ export class K8sApp {
 		this.command = new Command('k8s-cli')
 			.description('Cli to manage your k8s application')
 
-		const commands = [listCommand, synthCommand, applyCommand, diffCommand, deleteCommand]
+		const commands = [listCommand, buildCommand, deployCommand, diffCommand, deleteCommand]
 		commands.forEach((c) => {
 			c
 				.option('--include <include>', 'include charts in this list', '')
@@ -76,65 +76,55 @@ export class K8sApp {
 		})
 	}
 
-	async #synthChart (chart: K8sChart, options: SynthOptions, deploy = false) {
-		const k8sNodes = chart.app.node.findAll().filter((node) => node instanceof K8sConstruct)
-		if (deploy) await Promise.all(k8sNodes.map((node) => node.deploy()))
+	async #buildChart (chart: K8sChart, options: BuildOptions) {
+		await chart.runHook('pre:build')
 		const result = chart.app.synthYaml()
 		await fs.writeFile(path.resolve(toolFolder, `${chart.node.id}.yaml`), result)
+		await chart.runHook('post:build')
 		return result
 	}
 
-	async #applyChart (chart: K8sChart, options: ApplyOptions) {
-		const result = await this.#synthChart(chart, options, !options.skipImageBuilds)
-		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id }, result)
-		// await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
+	async #deployChart (chart: K8sChart, options: DeployOptions) {
+		const result = await this.#buildChart(chart, options)
+		await chart.runHook('pre:deploy')
+		if (!options.skipImageBuilds) {} // TODO: how to use skip image builds
+		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id })
 		const applySetName = `configmaps/${chart.namespace}-${chart.node.id}`
 		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
-		await this.#runWithTrials(
+		await runWithTrials(
 			async (trial: number) => {
 				if (trial > 1) console.log('\n\n\n\n\nRetrying')
 				await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${applySetName} -f -`, result)
 			},
 			{ tries: 3, delayMs: 2000 }
 		)
+		await chart.runHook('post:deploy')
 	}
 
 	async #diffChart (chart: K8sChart, options: DiffOptions) {
-		const result = await this.#synthChart(chart, options)
-		// await exec(`kubectl diff --prune -l=${chart.selector} -f -`, result, true)
+		const result = await this.#buildChart(chart, options)
+		await chart.runHook('pre:diff')
 		await exec(`kubectl diff --prune -n=${chart.namespace} -f -`, result, true)
+		await chart.runHook('post:diff')
 	}
 
-	async #deleteChart (chart: K8sChart, options: DeleteOptions, res?: string) {
-		// const result = res ?? await this.#synthChart(chart, options)
-		// await exec(`kubectl delete -l=${chart.selector} --wait --ignore-not-found -f -`, result)
+	async #deleteChart (chart: K8sChart, options: DeleteOptions) {
+		await chart.runHook('pre:delete')
 		await exec(`kubectl delete ns ${chart.namespace} --wait --ignore-not-found`)
-	}
-
-	async #runWithTrials<T extends (trial: number) => any> (fn: T, opts: { tries: number, delayMs: number }) {
-		let error: Error | undefined
-		for (const trial of new Array(opts.tries).fill(0).map((_, i) => i + 1)) {
-			try {
-				return await fn(trial)
-			} catch (err) {
-				await new Promise<void>((res) => setTimeout(res, opts.delayMs))
-				error = err
-			}
-		}
-		throw error ?? new Error('failed to execute trials')
+		await chart.runHook('post:delete')
 	}
 }
 
 interface CommonOptions {
-	include?: string
-	exclude?: string
+	include: string
+	exclude: string
 }
 
-interface SynthOptions extends CommonOptions {}
+interface BuildOptions extends CommonOptions {}
 
-interface ApplyOptions extends CommonOptions {
-	fresh?: boolean
-	skipImageBuilds?: boolean
+interface DeployOptions extends CommonOptions {
+	fresh: boolean
+	skipImageBuilds: boolean
 }
 
 interface DiffOptions extends CommonOptions {}

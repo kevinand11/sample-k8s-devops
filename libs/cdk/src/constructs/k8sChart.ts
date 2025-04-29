@@ -1,4 +1,5 @@
 import { App, Chart } from 'cdk8s'
+import { K8sConstruct, K8sConstructHook } from './k8sConstruct'
 
 export interface K8sChartProps {
 	namespace: string
@@ -26,5 +27,14 @@ export class K8sChart extends Chart {
 
 	resolve (name: string) {
 		return `${this.node.id}-${name}`
+	}
+
+	async runHook (hook: K8sConstructHook) {
+		const nodes = this.app.node.findAll().filter((node) => node instanceof K8sConstruct)
+
+		for (const node of nodes) {
+			const cbs = node.hooks[hook] ?? []
+			for (const cb of cbs) await cb()
+		}
 	}
 }

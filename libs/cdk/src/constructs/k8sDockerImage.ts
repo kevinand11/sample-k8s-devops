@@ -1,6 +1,6 @@
 import { exec } from '../common/utils'
 import { K8sChart } from './k8sChart'
-import { K8sConstruct } from './k8sConstruct'
+import { K8sConstruct, K8sConstructHook, K8sConstructHookCallback } from './k8sConstruct'
 
 export class K8sDockerPlatform {
 	readonly platform: string;
@@ -18,7 +18,7 @@ export class K8sDockerPlatform {
 
 export interface Ks8DockerImageProps {
 	name: string
-	tag?: string
+	tag: string
 	build: string | {
 		context: string
 		file?: string
@@ -27,12 +27,18 @@ export interface Ks8DockerImageProps {
 		args?: Record<string, string>
 		tags?: Record<string, string>
 	}
-	hooks?: Partial<Record<'pre:build' | 'post:build' | 'pre:deploy' | 'post:deploy', () => Promise<void>>>
+	hooks?: Partial<Record<K8sConstructHook, K8sConstructHookCallback>>
 }
 
 export class K8sDockerImage extends K8sConstruct {
 	constructor (scope: K8sChart, id: string, private readonly props: Ks8DockerImageProps) {
 		super(scope, id)
+
+		Object.entries(props.hooks ?? {}).forEach(([hook, cb]) => this.addHook(hook as K8sConstructHook, cb))
+		this.addHook('pre:deploy', async () => {
+			await this.#buildImage()
+			await this.#pushImage()
+		})
 	}
 
 	get name () {
@@ -40,14 +46,14 @@ export class K8sDockerImage extends K8sConstruct {
 	}
 
 	get tag () {
-		return this.props.tag ?? 'latest'
+		return this.props.tag
 	}
 
 	get nameTag () {
 		return `${this.name}:${this.tag}`
 	}
 
-	async #build () {
+	async #buildImage () {
 		const build = this.props.build
 		const args: string[] = []
 		const path = typeof build === 'object' ? build.context : build
@@ -65,16 +71,7 @@ export class K8sDockerImage extends K8sConstruct {
 		await exec(['docker', 'buildx', 'build', ...args, path].join(' '))
 	}
 
-	async #push () {
+	async #pushImage () {
 		await exec(`docker image push ${this.nameTag}`)
-	}
-
-	async deploy () {
-		await this.props.hooks?.['pre:build']?.()
-		await this.#build()
-		await this.props.hooks?.['post:build']?.()
-		await this.props.hooks?.['pre:deploy']?.()
-		await this.#push()
-		await this.props.hooks?.['post:deploy']?.()
 	}
 }
