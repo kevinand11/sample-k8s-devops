@@ -1,10 +1,11 @@
-import { Command } from 'commander'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 
-import { createFolderIfNotExists, exec, runWithTrials } from '../common/utils'
+import { Command } from 'commander'
+
 
 import { K8sChart } from './k8sChart'
+import { createFolderIfNotExists, exec, runWithTrials } from '../common/utils'
 
 const toolFolder = path.resolve(process.cwd(), '.k8s-cdk')
 
@@ -76,7 +77,7 @@ export class K8sApp {
 		})
 	}
 
-	async #buildChart (chart: K8sChart, options: BuildOptions) {
+	async #buildChart (chart: K8sChart, _options: BuildOptions) {
 		await chart.runHook('pre:build')
 		const result = chart.app.synthYaml()
 		await fs.writeFile(path.resolve(toolFolder, `${chart.node.id}.yaml`), result)
@@ -87,7 +88,9 @@ export class K8sApp {
 	async #deployChart (chart: K8sChart, options: DeployOptions) {
 		const result = await this.#buildChart(chart, options)
 		await chart.runHook('pre:deploy')
-		if (!options.skipImageBuilds) {} // TODO: how to use skip image builds
+		if (!options.skipImageBuilds) {
+			// TODO: how to use skip image builds
+		}
 		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id })
 		const applySetName = `configmaps/${chart.namespace}-${chart.node.id}`
 		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
@@ -108,7 +111,7 @@ export class K8sApp {
 		await chart.runHook('post:diff')
 	}
 
-	async #deleteChart (chart: K8sChart, options: DeleteOptions) {
+	async #deleteChart (chart: K8sChart, _options: DeleteOptions) {
 		await chart.runHook('pre:delete')
 		await exec(`kubectl delete ns ${chart.namespace} --wait --ignore-not-found`)
 		await chart.runHook('post:delete')

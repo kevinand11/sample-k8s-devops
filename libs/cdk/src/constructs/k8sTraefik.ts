@@ -1,9 +1,10 @@
 import { ApiObject } from 'cdk8s'
 import { Resource } from 'cdk8s-plus-32'
 import { Construct } from 'constructs'
-import { Middleware, MiddlewareSpec } from '../../imports/traefik.io'
+
 import { K8sChart } from './k8sChart'
 import { K8sHelm, K8sHelmProps } from './k8sHelm'
+import { Middleware, MiddlewareSpec } from '../../imports/traefik.io'
 
 export interface K8sTraefikAnnotationsProp {
   ingress: ApiObject | Resource
@@ -54,7 +55,7 @@ export class K8sTraefikMiddleware extends Middleware {
     super(scope, id, {
       metadata: {},
       spec,
-    });
+    })
   }
 
   get nameResolution () {

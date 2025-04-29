@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 
@@ -9,7 +10,7 @@ export function createPackageJson(
   extra?: Record<string, unknown>
 ) {
   if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
+    mkdirSync(dir, { recursive: true })
   }
 
   writeFileSync(
@@ -24,7 +25,7 @@ export function createPackageJson(
       null,
       2
     )
-  );
+  )
 }
 
 export function createServerDockerfile(dir: string) {

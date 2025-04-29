@@ -2,13 +2,24 @@
   "name": "@devops/root",
   "version": "1.0.0",
   "scripts": {
-    "k8s": "NODE_OPTIONS='-r dotenv/config' tsx src/index.ts"
+    "k8s": "NODE_OPTIONS='-r dotenv/config' tsx src/index.ts",
+    "lint": "eslint libs/*/src src",
+    "build": "pnpm -r build",
+    "lint:staged": "lint-staged",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
   },
   "dependencies": {
     "@devops/k8s-cdk": "workspace:^"
   },
   "devDependencies": {
+    "@k11/eslint-config": "^0.1.6",
+    "@k11/prettier-config": "^0.1.0",
     "@types/node": "^22.15.2",
-    "dotenv": "^16.5.0"
+    "dotenv": "^16.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.1"
   }
 }

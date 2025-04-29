@@ -1,8 +1,9 @@
+import path from 'node:path'
+
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
 import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sDomainProps, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm } from '@devops/k8s-cdk/k8s'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
-import path from 'node:path'
 
 interface DevopsChartProps extends K8sChartProps {
   domain: K8sDomainProps
@@ -11,7 +12,7 @@ interface DevopsChartProps extends K8sChartProps {
 
 export class DevopsChart extends K8sChart {
   constructor(props: DevopsChartProps) {
-    super('devops', props);
+    super('devops', props)
 
     const domain = new K8sDomain(props.domain)
     const gateway = this.createGateway(props.certificate)

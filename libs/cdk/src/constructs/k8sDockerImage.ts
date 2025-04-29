@@ -1,9 +1,9 @@
-import { exec } from '../common/utils'
 import { K8sChart } from './k8sChart'
 import { K8sConstruct, K8sConstructHook, K8sConstructHookCallback } from './k8sConstruct'
+import { exec } from '../common/utils'
 
 export class K8sDockerPlatform {
-	readonly platform: string;
+	readonly platform: string
 	private constructor (platform: string) {
 		this.platform = platform
 	}

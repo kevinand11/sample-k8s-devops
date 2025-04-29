@@ -1,18 +1,17 @@
 import { access, constants, mkdir } from 'node:fs/promises'
+
 import { $ } from 'zx'
 
 export async function exec (command: string, injectInput?: string, allowNonZeroCodes?: boolean) {
 	return new Promise<void>((res, rej) => {
 		let stderr= ''
-		const process = $.spawn(command, { stdio: ['pipe', 'inherit', null], shell: true });
+		const process = $.spawn(command, { stdio: ['pipe', 'inherit', null], shell: true })
 		if (injectInput) {
 			process.stdin?.write(injectInput)
 			process.stdin?.end()
 		}
 
-		process.stderr.on('data', (data) => {
-      		stderr += data.toString();
-    	});
+		process.stderr.on('data', (data) => stderr += data.toString())
 
 		process.on('close', (code) => {
 			if (code === 0 || allowNonZeroCodes) return res()
@@ -25,9 +24,9 @@ export async function exec (command: string, injectInput?: string, allowNonZeroC
 
 export async function createFolderIfNotExists(folderPath: string) {
   try {
-    await access(folderPath, constants.F_OK);
+    await access(folderPath, constants.F_OK)
   } catch {
-    await mkdir(folderPath, { recursive: true });
+    await mkdir(folderPath, { recursive: true })
   }
 }
 

@@ -13,7 +13,7 @@ export class InfraChart extends K8sChart {
   readonly certificateName?: string
 
   constructor(private readonly props: InfraChartProps) {
-    super('infra', props);
+    super('infra', props)
     this.domain = new K8sDomain(props.domain)
     this.certificateName = this.resolve(`cert-manager-certificate-secret`)
     this.createCertificate(this.certificateName)
