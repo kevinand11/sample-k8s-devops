@@ -1,4 +1,4 @@
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sHelm, K8sTraefikHelm, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk'
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
@@ -61,6 +61,7 @@ export class DevopsChart extends K8sChart {
   }
 
   createRouter (routes: { service: Service, host: string }[]) {
+    new K8sGatewayCRDs(this, 'gateway-crds')
     new K8sTraefikHelm(this, 'traefik-controller', {
       values: {
         ports: {
@@ -87,6 +88,9 @@ export class DevopsChart extends K8sChart {
             enabled: true,
           }
         },
+        providers: {
+          kubernetesGateway: { enabled: true }
+        }
       },
       installCRDs: true,
     })

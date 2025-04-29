@@ -2,5 +2,6 @@ language: typescript
 app: npx tsx src/index.ts
 imports:
   - k8s
+  - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml
   - https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
   - https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.crds.yaml
