@@ -12,7 +12,8 @@
     "*": "eslint --fix"
   },
   "dependencies": {
-    "@devops/k8s-cdk": "workspace:^"
+    "@devops/k8s-cdk": "workspace:^",
+    "cloudflare": "^4.2.0"
   },
   "devDependencies": {
     "@k11/eslint-config": "^0.1.6",

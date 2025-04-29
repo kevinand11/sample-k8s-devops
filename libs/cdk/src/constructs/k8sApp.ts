@@ -24,7 +24,6 @@ export class K8sApp {
 		const buildCommand = new Command('build')
 			.description('build yaml representation of code')
 			.action(async (options: BuildOptions) => {
-				await fs.rm(toolFolder, { recursive: true, force: true })
 				await createFolderIfNotExists(toolFolder)
 				for (const chart of this.#filterCharts(options)) await this.#buildChart(chart, options)
 			})
@@ -78,9 +77,11 @@ export class K8sApp {
 	}
 
 	async #buildChart (chart: K8sChart, _options: BuildOptions) {
+		const filePath = path.resolve(toolFolder, `${chart.node.id}.yaml`)
+		await fs.rm(filePath, { recursive: true, force: true })
 		await chart.runHook('pre:build')
 		const result = chart.app.synthYaml()
-		await fs.writeFile(path.resolve(toolFolder, `${chart.node.id}.yaml`), result)
+		await fs.writeFile(filePath, result)
 		await chart.runHook('post:build')
 		return result
 	}

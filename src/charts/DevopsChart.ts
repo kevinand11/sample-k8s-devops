@@ -11,11 +11,13 @@ interface DevopsChartProps extends K8sChartProps {
 }
 
 export class DevopsChart extends K8sChart {
-  constructor(props: DevopsChartProps) {
+  readonly domain: K8sDomain
+  constructor(private readonly props: DevopsChartProps) {
     super('devops', props)
 
     const domain = new K8sDomain(props.domain)
-    const gateway = this.createGateway(props.certificate)
+    this.domain = domain
+    const gateway = this.createGateway()
 
     const { service: mongoUiService } = this.createMongo()
     const { service: redisUiService } = this.createRedis()
@@ -49,7 +51,7 @@ export class DevopsChart extends K8sChart {
     )
   }
 
-  createGateway (certificate: DevopsChartProps['certificate']) {
+  createGateway () {
     new K8sTraefikHelm(this, 'traefik', {
       values: {
         ports: {
@@ -65,9 +67,7 @@ export class DevopsChart extends K8sChart {
 
     new K8sGatewayCRDs(this, 'gateway-crds')
 
-    const tls = certificate ? {
-      certificateRefs: [{ name: certificate.name, namespace: certificate.namespace }]
-    } : undefined
+    const tls = this.props.certificate ? { certificateRefs: [this.props.certificate] } : undefined
 
     return new K8sGateway(this, 'gateway', {
       gatewayClass: { controllerName: 'traefik.io/gateway-controller' },
