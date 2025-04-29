@@ -1,33 +1,19 @@
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm, KsDomain } from '@devops/k8s-cdk'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm } from '@devops/k8s-cdk/k8s'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
-import { Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
+import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
 import path from 'node:path'
 
 import { InfraChart } from './InfraChart'
-import { Gateway } from '@devops/k8s-cdk/gateway'
-
-type KafkaValues = {
-  host: string
-  auth: {
-    securityProtocol: string
-    saslMechanism: string
-    saslJaasConfig: string
-  }
-}
 
 interface DevopsChartProps extends K8sChartProps {
   infra: InfraChart
 }
 
 export class DevopsChart extends K8sChart {
-  private readonly domain: KsDomain
-
   constructor(props: DevopsChartProps) {
     super('devops', props);
 
-    const domain = props.infra.domain.scope(this.namespace)
-
-    const image = new K8sDockerImage(this, 'docker', {
+    new K8sDockerImage(this, 'docker', {
       name: 'kevinand11/k8s-demo-app',
       build: {
         context: path.resolve(__dirname, '../app'),
@@ -38,16 +24,44 @@ export class DevopsChart extends K8sChart {
     const { publicService: mongoExpressService } = this.createMongo()
     const { publicService: redisCommanderService } = this.createRedis()
     const { publicService: kafkaUiService } = this.createKafka()
-    this.createRouter([
-      { service: mongoExpressService, host: domain.sub('mongo') },
-      { service: redisCommanderService, host: domain.sub('redis') },
-      { service: kafkaUiService, host: domain.sub('kafka') }
-    ])
+    const { publicService: whoamiService } = this.createTraefik()
+
+    const domain = props.infra.domain.scope(this.namespace)
+    const gateway = this.createGateway(props.infra.certificateName ? { name: props.infra.certificateName, namespace: props.infra.namespace } : undefined)
+
+    const routes = [
+      { name: 'whoami', service: whoamiService, host: domain.base },
+      { name: 'mongo', service: mongoExpressService, host: domain.sub('mongo') },
+      { name: 'redis', service: redisCommanderService, host: domain.sub('redis') },
+      { name: 'kafka', service: kafkaUiService, host: domain.sub('kafka') },
+    ]
+
+    for (const route of routes) gateway.addRoute(
+      `${route.name}-route`,
+      { name: route.service.name, port: route.service.port },
+      { host: route.host }
+    )
   }
 
-  createRouter (routes: { service: Service, host: string }[]) {
+  createGateway (certificate?: { name: string, namespace: string }) {
     new K8sGatewayCRDs(this, 'gateway-crds')
-    const traefik = new K8sTraefikHelm(this, 'traefik-controller', {
+
+    const tls = certificate ? {
+      certificateRefs: [{ name: certificate.name, namespace: certificate.namespace }]
+    } : undefined
+
+    return new K8sGateway(this, 'gateway', {
+      gatewayClass: { controllerName: 'traefik.io/gateway-controller' },
+      listeners: [
+        { name: 'http', port: 80, protocol: 'HTTP', tls },
+        { name: 'https', port: 443, protocol: 'HTTPS', tls },
+        { name: 'traefik', port: 90, protocol: 'HTTP', tls }
+      ],
+    })
+  }
+
+  createTraefik () {
+    new K8sTraefikHelm(this, 'traefik-controller', {
       values: {
         ports: {
           traefik: {
@@ -73,14 +87,11 @@ export class DevopsChart extends K8sChart {
             enabled: true,
           }
         },
-        providers: {
-          kubernetesGateway: { enabled: true }
-        }
       },
       installCRDs: true,
     })
 
-    const service = new Deployment(this, 'traefik-whoami', {
+    const publicService = new Deployment(this, 'traefik-whoami', {
       replicas: 1,
       containers: [{
         image: 'traefik/whoami:latest',
@@ -89,26 +100,7 @@ export class DevopsChart extends K8sChart {
       }]
     }).exposeViaService()
 
-    const allRoutes = routes.concat({ service, host: this.domain.base })
-
-    const gateway = new Gateway(this, 'gateway', {
-      spec: {
-        gatewayClassName: traefik.gatewayClass!.name,
-        // TODO: add gateway route
-        listeners: [],
-      }
-    })
-
-    /* new IngressRoute(this, 'router', {
-      metadata: {},
-      spec: {
-        routes: allRoutes.map(({ service, host }) => ({
-          match: `Host(\`${host}\`)`,
-          services: [{ kind: IngressRouteSpecRoutesServicesKind.SERVICE, name: service.name, port: IngressRouteSpecRoutesServicesPort.fromNumber(service.port) }]
-        })),
-        tls: { secretName }
-      }
-    }) */
+    return { publicService }
   }
 
   createMongo () {
@@ -277,5 +269,14 @@ export class DevopsChart extends K8sChart {
     const url = `http://${service.name}:${service.port}`
 
     return { url }
+  }
+}
+
+type KafkaValues = {
+  host: string
+  auth: {
+    securityProtocol: string
+    saslMechanism: string
+    saslJaasConfig: string
   }
 }

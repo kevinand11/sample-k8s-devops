@@ -1,4 +1,4 @@
-import { K8sCertManagerHelm, K8sChart, K8sChartProps, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk'
+import { K8sCertManagerHelm, K8sChart, K8sChartProps, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk/k8s'
 import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
 import { Secret } from '@devops/k8s-cdk/plus'
 
@@ -10,22 +10,16 @@ interface InfraChartProps extends K8sChartProps {
 
 export class InfraChart extends K8sChart {
   readonly domain: KsDomain
-  readonly certificate: {
-    name: string
-    namespace: string
-  }
+  readonly certificateName?: string
 
   constructor(private readonly props: InfraChartProps) {
     super('infra', props);
-    const { certSecretName } = this.createCertificate()
     this.domain = new KsDomain(props.domain)
-    this.certificate = {
-      name: certSecretName,
-      namespace: this.namespace
-    }
+    this.certificateName = this.resolve(`cert-manager-certificate-secret`)
+    this.createCertificate(this.certificateName)
   }
 
-  createCertificate () {
+  createCertificate (certSecretName: string) {
     new K8sCertManagerHelm(this, 'cert-manager', {
       values: {
         namespace: this.namespace,
@@ -44,13 +38,13 @@ export class InfraChart extends K8sChart {
 
     const { certEmail, cloudflareApiToken } = this.props
 
-    const cloudflareApiTokenSecret = new Secret(this, 'cert-manager-issuer-cloudflare-api-token-secret', {
+    const cloudflareApiTokenSecret = new Secret(this, 'cert-manager-cloudflare-api-token-secret', {
       stringData: {
         apiToken: cloudflareApiToken,
       }
     })
 
-    const issuer = new Issuer(this, 'cert-manager-cluster-issuer', {
+    const issuer = new Issuer(this, 'cert-manager-issuer', {
       spec: {
         acme: {
           email: certEmail,
@@ -74,9 +68,7 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    const certSecretName = this.resolve(`cert-manager-issuer-certificate-secret`)
-
-    new Certificate(this, 'certificate', {
+    new Certificate(this, 'cert-manager-certificate', {
       spec: {
         secretName: certSecretName,
         issuerRef: {
@@ -84,7 +76,7 @@ export class InfraChart extends K8sChart {
           kind: issuer.kind,
         },
         commonName: this.domain.common,
-        dnsNames: [this.domain.base, this.domain.common]
+        dnsNames: Object.keys({ [this.domain.base]: true, [this.domain.common]: true })
       }
     })
 

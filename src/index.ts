@@ -1,4 +1,5 @@
-import { K8sApp } from '@devops/k8s-cdk'
+import { K8sApp } from '@devops/k8s-cdk/k8s'
+
 import { DevopsChart } from './charts/DevopsChart'
 import { InfraChart } from './charts/InfraChart'
 
