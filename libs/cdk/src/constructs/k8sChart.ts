@@ -1,6 +1,6 @@
 import { App, Chart } from 'cdk8s'
 
-import { K8sConstruct, K8sConstructHook } from './k8sConstruct'
+import { AddK8sHook, K8sConstruct, K8sConstructHook } from './k8sConstruct'
 
 export interface K8sChartProps {
 	namespace: string
@@ -8,7 +8,7 @@ export interface K8sChartProps {
 
 const labelKey = 'k8s.chart.scope'
 
-export class K8sChart extends Chart {
+export class K8sChart extends AddK8sHook(Chart) {
 	readonly app: App
 	readonly namespace: string
 
@@ -32,10 +32,7 @@ export class K8sChart extends Chart {
 
 	async runHook (hook: K8sConstructHook) {
 		const nodes = this.app.node.findAll().filter((node) => node instanceof K8sConstruct)
-
-		for (const node of nodes) {
-			const cbs = node.hooks[hook] ?? []
-			for (const cb of cbs) await cb()
-		}
+		const cbs = nodes.flatMap((node) => node.hooks[hook] ?? []).concat(this.hooks[hook] ?? [])
+		for (const cb of cbs) await cb()
 	}
 }
