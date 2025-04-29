@@ -1,20 +1,20 @@
-import { K8sCertManagerHelm, K8sChart, K8sChartProps, Ks8DomainProps, KsDomain } from '@devops/k8s-cdk/k8s'
+import { K8sCertManagerHelm, K8sChart, K8sChartProps, K8sDomainProps, K8sDomain } from '@devops/k8s-cdk/k8s'
 import { Certificate, Issuer } from '@devops/k8s-cdk/cert-manager'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
   certEmail: string
   cloudflareApiToken: string
-  domain: Ks8DomainProps
+  domain: K8sDomainProps
 }
 
 export class InfraChart extends K8sChart {
-  readonly domain: KsDomain
+  readonly domain: K8sDomain
   readonly certificateName?: string
 
   constructor(private readonly props: InfraChartProps) {
     super('infra', props);
-    this.domain = new KsDomain(props.domain)
+    this.domain = new K8sDomain(props.domain)
     this.certificateName = this.resolve(`cert-manager-certificate-secret`)
     this.createCertificate(this.certificateName)
   }

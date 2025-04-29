@@ -1,10 +1,10 @@
-export interface Ks8DomainProps {
+export interface K8sDomainProps {
 	name: string
 	wildcard?: boolean
 }
 
-export class KsDomain {
-	constructor (private readonly props: Ks8DomainProps) { }
+export class K8sDomain {
+	constructor (private readonly props: K8sDomainProps) { }
 
 	get common () {
 		return this.#calc(this.props.wildcard ? '*' : undefined)
@@ -23,10 +23,10 @@ export class KsDomain {
 		return [sub, name].filter(Boolean).join(wildcard ? '.' : '-')
 	}
 
-	scope (scope: string) {
-		return new KsDomain({
+	scope (scope: string): K8sDomainProps {
+		return {
 			...this.props,
 			name: this.#calc(scope)
-		})
+		}
 	}
 }

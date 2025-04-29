@@ -15,7 +15,8 @@ const infraChart = new InfraChart({
 
 const devopsChart = new DevopsChart({
   namespace: 'dev',
-  infra: infraChart,
+  domain: infraChart.domain.scope('dev'),
+  certificate: infraChart.certificateName ? { name: infraChart.certificateName, namespace: infraChart.namespace } : undefined
 })
 
 

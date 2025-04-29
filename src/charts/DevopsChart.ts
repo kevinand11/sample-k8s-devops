@@ -1,12 +1,11 @@
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm } from '@devops/k8s-cdk/k8s'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm, K8sDomainProps } from '@devops/k8s-cdk/k8s'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
 import path from 'node:path'
 
-import { InfraChart } from './InfraChart'
-
 interface DevopsChartProps extends K8sChartProps {
-  infra: InfraChart
+  domain: K8sDomainProps
+  certificate?: { name: string, namespace: string }
 }
 
 export class DevopsChart extends K8sChart {
@@ -26,8 +25,8 @@ export class DevopsChart extends K8sChart {
     const { publicService: kafkaUiService } = this.createKafka()
     const { publicService: whoamiService } = this.createTraefik()
 
-    const domain = props.infra.domain.scope(this.namespace)
-    const gateway = this.createGateway(props.infra.certificateName ? { name: props.infra.certificateName, namespace: props.infra.namespace } : undefined)
+    const domain = new K8sDomain(props.domain)
+    const gateway = this.createGateway(props.certificate)
 
     const routes = [
       { name: 'whoami', service: whoamiService, host: domain.base },
@@ -43,7 +42,7 @@ export class DevopsChart extends K8sChart {
     )
   }
 
-  createGateway (certificate?: { name: string, namespace: string }) {
+  createGateway (certificate: DevopsChartProps['certificate']) {
     new K8sGatewayCRDs(this, 'gateway-crds')
 
     const tls = certificate ? {

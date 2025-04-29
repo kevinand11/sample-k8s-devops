@@ -16,7 +16,7 @@ export class K8sApp {
 			.description('list charts')
 			.action(async (options) => {
 				const charts = this.#filterCharts(options)
-				const data = charts.map((chart) => ({ Id: chart.node.id, Name: chart.constructor.name, Namespace: chart.namespace  }))
+				const data = charts.map((chart) => ({ Id: chart.node.id, Name: chart.constructor.name, Namespace: chart.namespace }))
 				console.table(data)
 			})
 
@@ -43,9 +43,11 @@ export class K8sApp {
 			})
 
 		const deleteCommand = new Command('delete')
-			.description('delete charts')
+			.description('delete chart')
+			.requiredOption('--chart-id <value>', 'id of chart to delete')
 			.action(async (options: DeleteOptions) => {
-				for (const chart of this.#filterCharts(options))  await this.#deleteChart(chart, options)
+				const chart = this.#filterCharts(options).find((c) => c.node.id === options.chartId)
+				if (chart) await this.#deleteChart(chart, options)
 			})
 
 		this.command = new Command('k8s-cli')
@@ -83,7 +85,7 @@ export class K8sApp {
 	}
 
 	async #applyChart (chart: K8sChart, options: ApplyOptions) {
-		const result = await this.#synthChart(chart, options, !options?.skipImageBuilds)
+		const result = await this.#synthChart(chart, options, !options.skipImageBuilds)
 		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id }, result)
 		// await exec(`kubectl apply --prune -l=${chart.selector} -f -`, result)
 		const applySetName = `configmaps/${chart.namespace}-${chart.node.id}`
