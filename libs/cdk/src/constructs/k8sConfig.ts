@@ -40,6 +40,11 @@ export class K8sConfig {
 		return value
 	}
 
+	getAsJSON(name: string, required = false) {
+		const value = this.get(name, required)
+		return JSON.parse(value)
+	}
+
 	exportAsJSON (): Readonly<StringOrObject> {
 		const values = Object.fromEntries(
 			Object.entries(this.values).map(([key, value]) => [key, this.props.secret ? Buffer.from(value, 'base64').toString('utf-8') : value])
@@ -69,9 +74,9 @@ export class K8sConfig {
 		rmSync(filePath, { force: true })
 	}
 
-	putFromJSON(values: StringOrObject<string | StringOrObject>) {
+	putFromJSON(values: StringOrObject<string | StringOrObject[] | StringOrObject>) {
 		return this.put(Object.fromEntries(
-			Object.entries(values).map(([key, value]) => [key, typeof value === 'object' ? JSON.stringify(value) : value])
+			Object.entries(values).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)])
 		))
 	}
 

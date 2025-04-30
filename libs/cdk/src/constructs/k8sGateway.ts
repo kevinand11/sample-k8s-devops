@@ -1,7 +1,7 @@
 import { ApiObjectMetadata, Include } from 'cdk8s'
 
 import { K8sChart } from './k8sChart'
-import { Gateway, GatewayClass, GatewaySpecListeners, HttpRoute, HttpRouteSpecRulesBackendRefs, HttpRouteSpecRulesFilters, HttpRouteSpecRulesFiltersRequestRedirect, HttpRouteSpecRulesFiltersType, HttpRouteSpecRulesMatches, HttpRouteSpecRulesMatchesPathType } from '../../imports/gateway.networking.k8s.io'
+import { Gateway, GatewayClass, GatewaySpecListeners, HttpRoute, HttpRouteSpecRulesBackendRefs, HttpRouteSpecRulesFilters, HttpRouteSpecRulesFiltersExtensionRef, HttpRouteSpecRulesFiltersRequestRedirect, HttpRouteSpecRulesFiltersType, HttpRouteSpecRulesMatches, HttpRouteSpecRulesMatchesPathType } from '../../imports/gateway.networking.k8s.io'
 
 export class K8sGatewayCRDs extends Include {
 	constructor (scope: K8sChart, id: string) {
@@ -22,6 +22,7 @@ export interface K8sGatewayRouteProps {
 	backend?: HttpRouteSpecRulesBackendRefs
 	pathType?: HttpRouteSpecRulesMatchesPathType
 	redirect?: HttpRouteSpecRulesFiltersRequestRedirect
+	extension?: HttpRouteSpecRulesFiltersExtensionRef
 }
 
 export class K8sGateway extends Gateway {
@@ -48,6 +49,7 @@ export class K8sGateway extends Gateway {
 		if (route.backend) backends.push(route.backend)
 		if (route.path) matches.push({ path: { type: route.pathType ?? HttpRouteSpecRulesMatchesPathType.PATH_PREFIX, value: route.path } })
 		if (route.redirect) filters.push({ type: HttpRouteSpecRulesFiltersType.REQUEST_REDIRECT, requestRedirect: route.redirect })
+		if (route.extension) filters.push({ type: HttpRouteSpecRulesFiltersType.EXTENSION_REF, extensionRef: route.extension })
 
 		return new HttpRoute(this.scope, id, {
 			spec: {
