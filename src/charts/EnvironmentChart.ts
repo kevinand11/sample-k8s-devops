@@ -150,7 +150,8 @@ export class EnvironmentChart extends K8sChart {
           ME_CONFIG_MONGODB_SERVER: EnvValue.fromValue(service.name),
           ME_CONFIG_MONGODB_ADMINUSERNAME: EnvValue.fromValue(auth.rootUser),
           ME_CONFIG_MONGODB_ADMINPASSWORD: EnvValue.fromValue(auth.rootPassword),
-          ME_CONFIG_BASICAUTH_ENABLED: EnvValue.fromValue('false')
+          ME_CONFIG_BASICAUTH: EnvValue.fromValue('false'),
+          ME_CONFIG_BASICAUTH_ENABLED: EnvValue.fromValue('false'),
         }
       }]
     }).exposeViaService()
