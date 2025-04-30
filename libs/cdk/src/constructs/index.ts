@@ -1,6 +1,7 @@
 export * from './k8sApp'
 export * from './k8sCertManager'
 export * from './k8sChart'
+export * from './k8sConfig'
 export * from './k8sConstruct'
 export * from './k8sDockerImage'
 export * from './k8sDomain'
