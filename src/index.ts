@@ -16,13 +16,13 @@ const baseDomain = K8sDomain.of({ name: domainName, wildcard: true })
 const domain = env === 'prod' ? baseDomain : baseDomain.scope(env)
 
 const infraChart = new InfraChart({
-  namespace: 'infra-ns',
+  namespace: 'stranerd-infra',
   certEmail: domainCertEmail,
   cloudflareApiToken,
 })
 
 const envChart = new EnvironmentChart({
-  namespace: `env-${env}-ns`,
+  namespace: `stranerd-env-${env}`,
   env,
   imagesTag: getRequiredProcessEnv('IMAGES_TAG'),
   domain,

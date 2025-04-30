@@ -37,7 +37,7 @@ export class K8sConfig {
 	get (name: string, required = false) {
 		const value = this.exportAsJSON()[name]
 		if (required && !value) throw new Error(`${name} not found in config values`)
-		return this.props.secret ? Buffer.from(value, 'base64').toString('utf-8') : value
+		return value
 	}
 
 	exportAsJSON (): Readonly<StringOrObject> {

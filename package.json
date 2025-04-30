@@ -2,7 +2,7 @@
   "name": "@devops/root",
   "version": "1.0.0",
   "scripts": {
-    "k8s": "K8S_SKIP_DOCKER_IMAGE_BUILDS=true NODE_OPTIONS='-r dotenv/config' tsx src/index.ts",
+    "k8s": "NODE_OPTIONS='-r dotenv/config' tsx src/index.ts",
     "lint": "eslint libs/*/src src",
     "build": "pnpm -r build",
     "lint:staged": "lint-staged",

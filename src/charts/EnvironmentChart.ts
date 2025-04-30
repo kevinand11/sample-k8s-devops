@@ -83,8 +83,8 @@ export class EnvironmentChart extends K8sChart {
       spec: {
         secretName,
         issuerRef: this.props.issuer,
-        commonName: this.domain.common,
-        dnsNames: Object.keys({ [this.domain.base]: true, [this.domain.common]: true })
+        commonName: this.props.domain.common,
+        dnsNames: Object.keys({ [this.props.domain.base]: true, [this.props.domain.common]: true })
       }
     }) : undefined
 
@@ -150,6 +150,7 @@ export class EnvironmentChart extends K8sChart {
           ME_CONFIG_MONGODB_SERVER: EnvValue.fromValue(service.name),
           ME_CONFIG_MONGODB_ADMINUSERNAME: EnvValue.fromValue(auth.rootUser),
           ME_CONFIG_MONGODB_ADMINPASSWORD: EnvValue.fromValue(auth.rootPassword),
+          ME_CONFIG_BASICAUTH_ENABLED: EnvValue.fromValue('false')
         }
       }]
     }).exposeViaService()
