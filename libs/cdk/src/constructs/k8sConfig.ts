@@ -10,6 +10,7 @@ import { execSync } from '../common/utils'
 interface K8sConfigProps {
 	name: string
 	namespace?: string
+	secret?: boolean
 	parent?: K8sConfig
 }
 
@@ -20,25 +21,33 @@ export class K8sConfig {
 	private constructor (private readonly props: K8sConfigProps) {
 		if (!props.name) throw new Error('name is required for K8sEnv')
 		if (props.namespace) execSync(`kubectl get ns ${props.namespace} > /dev/null 2>&1 || kubectl create ns ${props.namespace}`)
-		execSync(`kubectl get ${this.#commonArgs} > /dev/null 2>&1 || kubectl create ${this.#commonArgs}`)
+		let createCommonArgs = this.#commonArgs
+		if (createCommonArgs.startsWith('secret ')) createCommonArgs = `secret generic ${createCommonArgs.slice(6)}`
+		execSync(`kubectl get ${this.#commonArgs} > /dev/null 2>&1 || kubectl create ${createCommonArgs}`)
 		const res = execSync(`kubectl get ${this.#commonArgs} -o json`)
 		const values = JSON.parse(res).data
 		this.values = values
 	}
 
 	get #commonArgs () {
-		const { name, namespace } = this.props
-		return ['configmap', namespace ? `-n=${namespace}` : undefined, name].filter(Boolean).join(' ')
+		const { name, namespace, secret: encrypted } = this.props
+		return [encrypted ? 'secret' : 'configmap', namespace ? `-n=${namespace}` : undefined, name].filter(Boolean).join(' ')
 	}
 
 	get (name: string, required = false) {
 		const value = this.exportAsJSON()[name]
 		if (required && !value) throw new Error(`${name} not found in config values`)
-		return value
+		return this.props.secret ? Buffer.from(value, 'base64').toString('utf-8') : value
 	}
 
-	exportAsJSON () {
-		return Object.freeze({ ...this.props.parent?.values, ...this.values })
+	exportAsJSON (): Readonly<StringOrObject> {
+		const values = Object.fromEntries(
+			Object.entries(this.values).map(([key, value]) => [key, this.props.secret ? Buffer.from(value, 'base64').toString('utf-8') : value])
+		)
+		return Object.freeze({
+			...(this.props.parent?.exportAsJSON()),
+			...values
+		})
 	}
 
 	exportAsEnv () {
@@ -55,7 +64,7 @@ export class K8sConfig {
 		this.values = values
 		const filePath = path.resolve(os.tmpdir(), '.k8s', crypto.randomUUID())
 		mkdirSync(path.dirname(filePath), { recursive: true })
-		writeFileSync(filePath, JSON.stringify({ data: values }))
+		writeFileSync(filePath, JSON.stringify({ [this.props.secret ? 'stringData' : 'data']: values }))
 		execSync(`kubectl patch ${this.#commonArgs} --type merge --patch-file ${filePath}`)
 		rmSync(filePath, { force: true })
 	}
@@ -66,7 +75,7 @@ export class K8sConfig {
 		))
 	}
 
-	static of (props: Pick<K8sConfigProps, 'name' | 'namespace'>) {
+	static of (props: Omit<K8sConfigProps, 'parent'>) {
 		return new K8sConfig(props)
 	}
 
