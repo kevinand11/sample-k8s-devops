@@ -24,21 +24,28 @@ export class EnvironmentChart extends K8sChart {
     const { service: kafkaUiService } = this.createKafka()
     const { service: appService } = this.createApp()
 
-    const routes = [
-      { name: 'app', service: appService, host: props.domain.base },
-      { name: 'mongo', service: mongoUiService, host: props.domain.scope('mongo').base },
-      { name: 'redis', service: redisUiService, host: props.domain.scope('redis').base },
-      { name: 'kafka', service: kafkaUiService, host: props.domain.scope('kafka').base },
+    const externalRoutes = [
+      { name: 'app', backend: { name: appService.name, port: appService.port }, host: props.domain.base }
+    ]
+    const internalRoutes = [
+      { name: 'mongo', backend: { name: mongoUiService.name, port: mongoUiService.port }, host: props.domain.scope('mongo').base },
+      { name: 'redis', backend: { name: redisUiService.name, port: redisUiService.port }, host: props.domain.scope('redis').base },
+      { name: 'kafka', backend: { name: kafkaUiService.name, port: kafkaUiService.port }, host: props.domain.scope('kafka').base },
+      { name: 'traefik-dashboard', backend: { name: 'api@internal', kind: 'TraefikService' }, host: props.domain.scope('traefik').base },
+      { name: 'traefik-metrics', backend: { name: 'prometheus@internal', kind: 'TraefikService' }, host: props.domain.scope('traefik').base, path: '/metrics' }
     ]
 
-    for (const route of routes) {
+    for (const { name, ...routeProps } of externalRoutes) {
       gateway.addRoute(
-        `${route.name}-https-route`,
-        {
-          listener: 'https',
-          backend: { name: route.service.name, port: route.service.port },
-          host: route.host
-        }
+        `${name}-external-https-route`,
+        {  listener: 'https', ...routeProps }
+      )
+    }
+
+    for (const { name, ...routeProps } of internalRoutes) {
+      gateway.addRoute(
+        `${name}-internal-https-route`,
+        {  listener: 'https', ...routeProps }
       )
     }
 
@@ -46,35 +53,6 @@ export class EnvironmentChart extends K8sChart {
       listener: 'http',
       redirect: { scheme: HttpRouteSpecRulesFiltersRequestRedirectScheme.HTTPS }
     })
-
-    gateway.addRoute(
-      `traefik-dashboard-route`,
-      {
-        listener: 'https',
-        backend: { name: 'api@internal', kind: 'TraefikService' },
-        host: props.domain.scope('traefik').base
-      }
-    )
-
-    gateway.addRoute(
-      `traefik-ping-route`,
-      {
-        listener: 'https',
-        backend: { name: 'ping@internal', kind: 'TraefikService' },
-        host: props.domain.scope('traefik').base,
-        path: '/ping'
-      }
-    )
-
-    gateway.addRoute(
-      `traefik-metrics-route`,
-      {
-        listener: 'https',
-        backend: { name: 'prometheus@internal', kind: 'TraefikService' },
-        host: props.domain.scope('traefik').base,
-        path: '/metrics'
-      }
-    )
   }
 
   createGateway () {
