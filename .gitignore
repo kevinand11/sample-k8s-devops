@@ -6,4 +6,6 @@ dist/
 
 .k8s-cdk/
 .env
+src/envs/configs/
+
 .DS_Store

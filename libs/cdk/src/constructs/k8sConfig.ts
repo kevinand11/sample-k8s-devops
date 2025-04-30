@@ -1,5 +1,11 @@
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
 import { EnvValue } from 'cdk8s-plus-32'
-import { $, quote } from 'zx'
+
+import { execSync } from '../common/utils'
+
 
 interface K8sConfigProps {
 	name: string
@@ -12,17 +18,23 @@ type StringOrObject<T = string> = Record<string, T>
 export class K8sConfig {
 	private values: StringOrObject
 	private constructor (private readonly props: K8sConfigProps) {
-		if (!props.name) throw new Error('name if required for K8sEnv')
-		if (props.namespace) $.sync`kubectl get namespace ${props.namespace} > /dev/null 2>&1 || kubectl create configmap ${props.namespace}`
-		$.sync`kubectl get configmap ${this.#commonArgs} > /dev/null 2>&1 || kubectl create configmap ${this.#commonArgs}`
-		const res = $.sync`kubectl get configmap ${this.props.name} ${this.#commonArgs} -o json`
-		const values = res.json().data
+		if (!props.name) throw new Error('name is required for K8sEnv')
+		if (props.namespace) execSync(`kubectl get ns ${props.namespace} > /dev/null 2>&1 || kubectl create ns ${props.namespace}`)
+		execSync(`kubectl get ${this.#commonArgs} > /dev/null 2>&1 || kubectl create ${this.#commonArgs}`)
+		const res = execSync(`kubectl get ${this.#commonArgs} -o json`)
+		const values = JSON.parse(res).data
 		this.values = values
 	}
 
 	get #commonArgs () {
 		const { name, namespace } = this.props
-		return ['configmap', namespace ? `-n ${namespace}` : undefined, name].filter(Boolean).join(' ')
+		return ['configmap', namespace ? `-n=${namespace}` : undefined, name].filter(Boolean).join(' ')
+	}
+
+	get (name: string, required = false) {
+		const value = this.exportAsJSON()[name]
+		if (required && !value) throw new Error(`${name} not found in config values`)
+		return value
 	}
 
 	exportAsJSON () {
@@ -41,7 +53,11 @@ export class K8sConfig {
 
 	put(values: StringOrObject) {
 		this.values = values
-		$.sync`kubectl patch ${this.#commonArgs} --type merge -p ${quote(JSON.stringify(values))}`
+		const filePath = path.resolve(os.tmpdir(), '.k8s', crypto.randomUUID())
+		mkdirSync(path.dirname(filePath), { recursive: true })
+		writeFileSync(filePath, JSON.stringify({ data: values }))
+		execSync(`kubectl patch ${this.#commonArgs} --type merge --patch-file ${filePath}`)
+		rmSync(filePath, { force: true })
 	}
 
 	putFromJSON(values: StringOrObject<string | StringOrObject>) {

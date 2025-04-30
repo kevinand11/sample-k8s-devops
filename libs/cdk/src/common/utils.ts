@@ -1,6 +1,12 @@
+import { execSync as execCommandSync } from 'node:child_process'
 import { access, constants, mkdir } from 'node:fs/promises'
 
 import { $ } from 'zx'
+
+export function execSync (command: string) {
+	const result = execCommandSync(command)
+	return result.toString().trim()
+}
 
 export async function exec (command: string, injectInput?: string, allowNonZeroCodes?: boolean) {
 	return new Promise<void>((res, rej) => {

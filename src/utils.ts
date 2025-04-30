@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process'
+
 import Cloudflare from 'cloudflare'
 import { RecordCreateParams, RecordListParams } from 'cloudflare/src/resources/dns/index.js'
 
@@ -51,4 +53,14 @@ export function getRequiredProcessEnv (name: string) {
 	const value = process.env[name]
 	if (!value) throw new Error(`${name} not defined in process env`)
 	return value
+}
+
+export function getLoadBalancerIP(ns: string) {
+  const output = execSync(`kubectl get services -n ${ns} -o json`).toString()
+  const json = JSON.parse(output)
+  for (const svc of json.items) {
+    const type = svc.spec.type
+    const ip = svc.status?.loadBalancer?.ingress?.[0]?.ip
+    if (type === "LoadBalancer" && ip) return ip
+  }
 }
