@@ -32,7 +32,7 @@ export class K8sChart extends AddK8sHook(Chart) {
 
 	async runHook (hook: K8sConstructHook) {
 		const nodes = this.app.node.findAll().filter((node) => node instanceof K8sConstruct)
-		const cbs = nodes.flatMap((node) => node.hooks[hook] ?? []).concat(this.hooks[hook] ?? [])
-		for (const cb of cbs) await cb()
+		for (const node of nodes) await node.runHook(hook)
+		super.runHook(hook)
 	}
 }
