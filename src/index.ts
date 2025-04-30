@@ -23,6 +23,7 @@ const infraChart = new InfraChart({
 
 const devopsChart = new DevopsChart({
   namespace: `${env}-ns`,
+  imagesTag: getRequiredProcessEnv('IMAGES_TAG'),
   domain,
   issuer: infraChart.issuer ? { name: infraChart.issuer.name, kind: infraChart.issuer.kind } : undefined,
 })

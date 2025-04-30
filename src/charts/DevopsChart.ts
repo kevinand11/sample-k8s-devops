@@ -7,6 +7,7 @@ import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
 
 interface DevopsChartProps extends K8sChartProps {
+  imagesTag: string
   domain: K8sDomain
   issuer?: { name: string, kind: string }
 }
@@ -280,7 +281,7 @@ export class DevopsChart extends K8sChart {
   createApp () {
     new K8sDockerImage(this, 'docker', {
       name: 'kevinand11/k8s-demo-app',
-      tag: 'latest',
+      tag: this.props.imagesTag,
       build: {
         context: path.resolve(__dirname, '../app'),
         platforms: [K8sDockerPlatform.LINUX_AMD64]
