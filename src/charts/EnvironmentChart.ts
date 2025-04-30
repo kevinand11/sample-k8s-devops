@@ -6,16 +6,16 @@ import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, 
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
 
-interface DevopsChartProps extends K8sChartProps {
+interface EnvironmentChartProps extends K8sChartProps {
   imagesTag: string
+  env: string
   domain: K8sDomain
   issuer?: { name: string, kind: string }
 }
 
-export class DevopsChart extends K8sChart {
-  readonly domain: K8sDomain
-  constructor(private readonly props: DevopsChartProps) {
-    super('devops', props)
+export class EnvironmentChart extends K8sChart {
+  constructor(private readonly props: EnvironmentChartProps) {
+    super('env', props)
 
     const gateway = this.createGateway()
 

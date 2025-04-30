@@ -60,7 +60,7 @@ export function getLoadBalancerIP(ns: string) {
   const json = JSON.parse(output)
   for (const svc of json.items) {
     const type = svc.spec.type
-    const ip = svc.status?.loadBalancer?.ingress?.[0]?.ip
+    const ip: string = svc.status?.loadBalancer?.ingress?.[0]?.ip
     if (type === "LoadBalancer" && ip) return ip
   }
 }

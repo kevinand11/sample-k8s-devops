@@ -16,7 +16,7 @@ export class K8sChart extends AddK8sHook(Chart) {
 		const app = new App()
 		super(app, id, {
 			disableResourceNameHashes: true,
-			labels: { [labelKey]: `${props.namespace}-${id}` }
+			labels: { [labelKey]: `${props.namespace}.${id}` }
 		})
 		this.namespace = props.namespace
 		this.app = app

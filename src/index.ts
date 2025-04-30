@@ -1,6 +1,6 @@
 import { K8sApp, K8sDomain } from '@devops/k8s-cdk/k8s'
 
-import { DevopsChart } from './charts/DevopsChart'
+import { EnvironmentChart } from './charts/EnvironmentChart'
 import { InfraChart } from './charts/InfraChart'
 import { devopsConfig } from './envs'
 import { deleteCloudflareRecord, getLoadBalancerIP, getRequiredProcessEnv, upsertCloudflareRecord } from './utils'
@@ -21,8 +21,9 @@ const infraChart = new InfraChart({
   cloudflareApiToken,
 })
 
-const devopsChart = new DevopsChart({
-  namespace: `${env}-ns`,
+const envChart = new EnvironmentChart({
+  namespace: `env-${env}-ns`,
+  env,
   imagesTag: getRequiredProcessEnv('IMAGES_TAG'),
   domain,
   issuer: infraChart.issuer ? { name: infraChart.issuer.name, kind: infraChart.issuer.kind } : undefined,
@@ -34,18 +35,18 @@ const common = {
   type: 'A' as const,
 }
 
-devopsChart.addHook('post:deploy', async () => {
-  const ip = getLoadBalancerIP(devopsChart.namespace)
+envChart.addHook('post:deploy', async () => {
+  const ip = getLoadBalancerIP(envChart.namespace)
   if (!ip) return
 
-  await upsertCloudflareRecord({ ...common, recordName: devopsChart.domain.base, ip })
-  await upsertCloudflareRecord({ ...common, recordName: devopsChart.domain.common, ip })
+  await upsertCloudflareRecord({ ...common, recordName: domain.base, ip })
+  await upsertCloudflareRecord({ ...common, recordName: domain.common, ip })
 })
 
-devopsChart.addHook('post:delete', async () => {
-  await deleteCloudflareRecord({ ...common, recordName: devopsChart.domain.base })
-  await deleteCloudflareRecord({ ...common, recordName: devopsChart.domain.common })
+envChart.addHook('post:delete', async () => {
+  await deleteCloudflareRecord({ ...common, recordName: domain.base })
+  await deleteCloudflareRecord({ ...common, recordName: domain.common })
 })
 
 
-new K8sApp([infraChart, devopsChart]).process()
+new K8sApp([infraChart, envChart]).process()
