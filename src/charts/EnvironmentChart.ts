@@ -1,10 +1,8 @@
-import { createHash } from 'node:crypto'
 import path from 'node:path'
 
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm } from '@devops/k8s-cdk/k8s'
-import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm } from '@devops/k8s-cdk/k8s'
 import { Deployment, EnvValue, Secret } from '@devops/k8s-cdk/plus'
 import { Middleware } from '@devops/k8s-cdk/traefik'
 
@@ -41,7 +39,7 @@ export class EnvironmentChart extends K8sChart {
     const basicAuthSecret = new Secret(this, 'internal-routes-basic-auth-secret', {
       stringData: {
         users: this.props.internalUsers
-          .map(({ user, pass }) => `${user}:${createHash('sha1').update(pass).digest('hex')}`)
+          .map(({ user, pass }) => `${user}:${pass}`)
           .join('\n')
       }
     })
@@ -91,7 +89,7 @@ export class EnvironmentChart extends K8sChart {
       }
     }) : undefined
 
-    new K8sTraefikHelm(this, 'traefik', {
+    K8sHelm.traefik(this, 'traefik', {
       values: {
         gateway: { enabled: false },
         providers: {
@@ -132,11 +130,11 @@ export class EnvironmentChart extends K8sChart {
       },
     })
 
-    const service = mongo.getTypedObject<KubeService>(
+    const service = mongo.getTypedObject(
       (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb',
     )!
 
-    const statefulSet = mongo.getTypedObject<KubeStatefulSet>(
+    const statefulSet = mongo.getTypedObject(
       (o) => o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb',
     )!
 
@@ -175,7 +173,7 @@ export class EnvironmentChart extends K8sChart {
       },
     })
 
-    const service = redis.getTypedObject<KubeService>(
+    const service = redis.getTypedObject(
       (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'master',
 
     )!
@@ -216,7 +214,7 @@ export class EnvironmentChart extends K8sChart {
       },
     })
 
-    const service = kafka.getTypedObject<KubeService>(
+    const service = kafka.getTypedObject(
       (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'kafka',
     )!
     const host = `${service.name}.${this.namespace}.svc.cluster.local:9092`

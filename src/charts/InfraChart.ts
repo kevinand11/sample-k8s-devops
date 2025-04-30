@@ -1,5 +1,5 @@
 import { ClusterIssuer } from '@devops/k8s-cdk/cert-manager'
-import { K8sCertManagerHelm, K8sChart, K8sChartProps } from '@devops/k8s-cdk/k8s'
+import { K8sChart, K8sChartProps, K8sHelm } from '@devops/k8s-cdk/k8s'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
@@ -17,7 +17,7 @@ export class InfraChart extends K8sChart {
   }
 
   createIssuer () {
-    new K8sCertManagerHelm(this, 'cert-manager', {
+    K8sHelm.certManager(this, 'cert-manager', {
       values: {
         namespace: this.namespace,
         crds: { enabled: true },
