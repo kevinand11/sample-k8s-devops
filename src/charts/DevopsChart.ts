@@ -2,12 +2,12 @@ import path from 'node:path'
 
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sDomainProps, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm } from '@devops/k8s-cdk/k8s'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm, K8sTraefikHelm } from '@devops/k8s-cdk/k8s'
 import { KubeService, KubeStatefulSet } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue } from '@devops/k8s-cdk/plus'
 
 interface DevopsChartProps extends K8sChartProps {
-  domain: K8sDomainProps
+  domain: K8sDomain
   issuer?: { name: string, kind: string }
 }
 
@@ -16,8 +16,6 @@ export class DevopsChart extends K8sChart {
   constructor(private readonly props: DevopsChartProps) {
     super('devops', props)
 
-    const domain = new K8sDomain(props.domain)
-    this.domain = domain
     const gateway = this.createGateway()
 
     const { service: mongoUiService } = this.createMongo()
@@ -26,10 +24,10 @@ export class DevopsChart extends K8sChart {
     const { service: appService } = this.createApp()
 
     const routes = [
-      { name: 'app', service: appService, host: domain.base },
-      { name: 'mongo', service: mongoUiService, host: domain.sub('mongo') },
-      { name: 'redis', service: redisUiService, host: domain.sub('redis') },
-      { name: 'kafka', service: kafkaUiService, host: domain.sub('kafka') },
+      { name: 'app', service: appService, host: props.domain.base },
+      { name: 'mongo', service: mongoUiService, host: props.domain.scope('mongo').base },
+      { name: 'redis', service: redisUiService, host: props.domain.scope('redis').base },
+      { name: 'kafka', service: kafkaUiService, host: props.domain.scope('kafka').base },
     ]
 
     for (const route of routes) {
@@ -53,7 +51,7 @@ export class DevopsChart extends K8sChart {
       {
         listener: 'https',
         backend: { name: 'api@internal', kind: 'TraefikService' },
-        host: domain.sub('traefik')
+        host: props.domain.scope('traefik').base
       }
     )
 
@@ -62,7 +60,7 @@ export class DevopsChart extends K8sChart {
       {
         listener: 'https',
         backend: { name: 'ping@internal', kind: 'TraefikService' },
-        host: domain.sub('traefik'),
+        host: props.domain.scope('traefik').base,
         path: '/ping'
       }
     )
@@ -72,7 +70,7 @@ export class DevopsChart extends K8sChart {
       {
         listener: 'https',
         backend: { name: 'prometheus@internal', kind: 'TraefikService' },
-        host: domain.sub('traefik'),
+        host: props.domain.scope('traefik').base,
         path: '/metrics'
       }
     )

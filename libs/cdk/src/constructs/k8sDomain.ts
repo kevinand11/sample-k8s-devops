@@ -1,32 +1,28 @@
-export interface K8sDomainProps {
+interface K8sDomainProps {
 	name: string
 	wildcard?: boolean
+	parent?: K8sDomain
 }
 
 export class K8sDomain {
-	constructor (private readonly props: K8sDomainProps) { }
+	private constructor (private readonly props: K8sDomainProps) { }
 
 	get common () {
-		return this.#calc(this.props.wildcard ? '*' : undefined)
+		return (this.props.wildcard ? this.scope('*') : this).base
 	}
 
 	get base () {
-		return this.#calc()
+		return this.props.name
 	}
 
-	sub (sub: string) {
-		return this.#calc(sub)
+	static of (props: K8sDomainProps) {
+		return new K8sDomain(props)
 	}
 
-	#calc (sub?: string) {
-		const { name, wildcard } = this.props
-		return [sub, name].filter(Boolean).join(wildcard ? '.' : '-')
-	}
-
-	scope (scope?: string): K8sDomainProps {
-		return {
+	scope (scope: string) {
+		return new K8sDomain({
 			...this.props,
-			name: this.#calc(scope)
-		}
+			name: [scope, this.props.name].join(this.props.wildcard ? '.' : '-')
+		})
 	}
 }

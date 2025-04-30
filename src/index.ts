@@ -6,30 +6,32 @@ import { DevopsChart } from './charts/DevopsChart'
 import { InfraChart } from './charts/InfraChart'
 import { deleteCloudflareRecord, getRequiredProcessEnv, upsertCloudflareRecord } from './utils'
 
+const env: string = getRequiredProcessEnv('ENVIRONMENT')
 const cloudflareZoneId = getRequiredProcessEnv('CLOUDFLARE_ZONE_ID')
 const cloudflareApiToken = getRequiredProcessEnv('CLOUDFLARE_API_TOKEN')
 const domainName = getRequiredProcessEnv('DOMAIN_NAME')
 const domainCertEmail = getRequiredProcessEnv('DOMAIN_CERT_EMAIL')
 
 const infraChart = new InfraChart({
-  namespace: 'infra',
+  namespace: 'infra-ns',
   certEmail: domainCertEmail,
   cloudflareApiToken,
 })
 
-const domain = new K8sDomain({ name: domainName, wildcard: true })
+const baseDomain = K8sDomain.of({ name: domainName, wildcard: true })
+const domain = env === 'prod' ? baseDomain : baseDomain.scope(env)
 
 const devopsChart = new DevopsChart({
-  namespace: 'dev',
-  domain: domain.scope('dev'),
+  namespace: `${env}-ns`,
+  domain,
   issuer: infraChart.issuer ? { name: infraChart.issuer.name, kind: infraChart.issuer.kind } : undefined,
 })
 
 const common = {
-    zoneId: cloudflareZoneId,
-    apiToken: cloudflareApiToken,
-    type: 'A' as const,
-  }
+  zoneId: cloudflareZoneId,
+  apiToken: cloudflareApiToken,
+  type: 'A' as const,
+}
 
 devopsChart.addHook('post:deploy', async () => {
   const ip = getLoadBalancerIP(devopsChart.namespace)

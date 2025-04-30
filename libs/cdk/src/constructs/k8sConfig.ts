@@ -54,7 +54,7 @@ export class K8sConfig {
 		return new K8sConfig(props)
 	}
 
-	child (name: string) {
+	scope (name: string) {
 		return new K8sConfig({ ...this.props, name: `${this.props.name}.${name}`, parent: this  })
 	}
 }
