@@ -28,7 +28,3 @@ export function AddK8sHooks<T extends { new(...args: any[]) }> (constructor: T) 
 		}
 	}
 }
-
-export function SupportsK8sHooks (o: any): o is K8sHooks {
-	return o !== null && typeof (0) === 'object' && hooksSymbol in o
-}
