@@ -65,3 +65,15 @@ jobs:
         run: |
           echo Env = ${{ env.ENV }}
           echo Tag = ${{ env.TAG }}
+
+      - name: Build devops app
+        run: pnpm -w build # TODO need to login to docker first
+        env:
+          ENVIRONMENT: ${{ env.ENV }}
+          IMAGES_TAG: ${{ env.TAG }}
+
+      - name: Deploy devops app #TODO: need to login to k8s first
+        run: pnpm -w k8s build # change to deploy --include devops
+        env:
+          ENVIRONMENT: ${{ env.ENV }}
+          IMAGES_TAG: ${{ env.TAG }}
