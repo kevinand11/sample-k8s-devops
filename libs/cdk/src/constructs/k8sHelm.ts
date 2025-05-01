@@ -20,6 +20,9 @@ export class K8sHelm extends K8sConstruct {
 	private helm?: Helm
 	constructor (private readonly scope: K8sChart, private readonly id: string, private readonly props: K8sHelmProps) {
 		super(scope, id)
+		this.addHook('pre:build', () => {
+			this.apiObjects
+		})
 	}
 
 	get apiObjects () {
