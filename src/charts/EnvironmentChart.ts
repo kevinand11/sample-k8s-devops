@@ -1,7 +1,7 @@
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
 import { K8sChart, K8sChartProps, K8sDomain, K8sGateway, K8sHelm } from '@devops/k8s-cdk/k8s'
-import { Service as KubeService } from '@devops/k8s-cdk/kube'
+import { IntOrString, Service as KubeService } from '@devops/k8s-cdk/kube'
 import { Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
 import { TwingateConnector, TwingateConnectorSpecImagePolicyProvider, TwingateResource, TwingateResourceAccess } from '@devops/k8s-cdk/twingate'
 
@@ -46,8 +46,19 @@ export class EnvironmentChart extends K8sChart {
         gateway: { enabled: false },
         providers: {
           kubernetesGateway: { enabled: true },
-        }
+        },
+        additionalArguments: ['--api.dashboard=true', '--api.insecure=true'],
       },
+    })
+
+    const service = new KubeService(this, 'traefik-internal-service', {
+      spec: {
+        selector: {
+          'app.kubernetes.io/name': 'traefik',
+          'app.kubernetes.io/instance': this.resolve(this.namespace),
+        },
+        ports: [{ name: 'traefik', port: 90, targetPort: IntOrString.fromString('traefik') }]
+      }
     })
 
     const tls = certificate ? { certificateRefs: [{ name: secretName }] } : undefined
@@ -83,6 +94,8 @@ export class EnvironmentChart extends K8sChart {
       }
     })
 
+    this.createInternalRoute('traefik', service)
+
     return { gateway, connector }
   }
 
@@ -108,7 +121,7 @@ export class EnvironmentChart extends K8sChart {
 
   createExternalRoute (name: string, service: Service, options: { host: string, path?: string }) {
     this.gateway?.addRoute(
-      `${name}-external-route`,
+      `${name}-route`,
       {
         backend: { name: service.name, port: service.port },
         host: options.host,
@@ -186,7 +199,7 @@ export class EnvironmentChart extends K8sChart {
       (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'master',
 
     )!
-    const redisHost = `${service.name}.${this.namespace}.svc.cluster.local`
+    const redisHost = this.resolveDns(service.name)
 
     const redisUrl = `redis://${redisHost}`
 
@@ -228,7 +241,7 @@ export class EnvironmentChart extends K8sChart {
     const service = kafka.getTypedObject(
       (o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'kafka',
     )!
-    const host = `${service.name}.${this.namespace}.svc.cluster.local:9092`
+    const host = `${this.resolveDns(service.name)}:9092`
 
     const values: KafkaValues = {
       host,
