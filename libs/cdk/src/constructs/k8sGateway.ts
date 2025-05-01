@@ -1,13 +1,7 @@
-import { ApiObjectMetadata, Include } from 'cdk8s'
+import { ApiObjectMetadata } from 'cdk8s'
 
 import { K8sChart } from './k8sChart'
 import { Gateway, GatewayClass, GatewaySpecListeners, HttpRoute, HttpRouteSpecRulesBackendRefs, HttpRouteSpecRulesFilters, HttpRouteSpecRulesFiltersExtensionRef, HttpRouteSpecRulesFiltersRequestRedirect, HttpRouteSpecRulesFiltersType, HttpRouteSpecRulesMatches, HttpRouteSpecRulesMatchesPathType } from '../../imports/gateway.networking.k8s.io'
-
-export class K8sGatewayCRDs extends Include {
-	constructor (scope: K8sChart, id: string) {
-		super(scope, id, { url: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml' })
-	}
-}
 
 export interface K8sGatewayProps {
 	metadata?: ApiObjectMetadata

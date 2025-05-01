@@ -45,4 +45,12 @@ export class K8sHelm extends Helm {
 			version: '35.1.0',
 		})
 	}
+
+	static twingateOperator (scope: K8sChart, id: string, props: K8sStaticHelmProps) {
+		return new K8sHelm(scope, id, {
+			...props,
+			chart: 'oci://ghcr.io/twingate/helmcharts/twingate-operator',
+			version: '0.20.2',
+		})
+	}
 }

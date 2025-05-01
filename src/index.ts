@@ -12,6 +12,7 @@ const cloudflareApiToken = devopsConfig.get('CLOUDFLARE_API_TOKEN')
 const domainName = devopsConfig.get('DOMAIN_NAME')
 const domainCertEmail = devopsConfig.get('DOMAIN_CERT_EMAIL')
 const internalUsers = devopsConfig.getAsJSON('INTERNAL_USERS')
+const twingate = devopsConfig.getAsJSON('TWINGATE')
 
 const baseDomain = K8sDomain.of({ name: domainName, wildcard: true })
 const domain = env === 'prod' ? baseDomain : baseDomain.scope(env)
@@ -28,6 +29,7 @@ const envChart = new EnvironmentChart({
   domain,
   issuer: infraChart.issuer ? { name: infraChart.issuer.name, kind: infraChart.issuer.kind } : undefined,
   internalUsers,
+  twingate,
 })
 
 const common = {

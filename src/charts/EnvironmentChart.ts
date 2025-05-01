@@ -1,6 +1,6 @@
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
-import { K8sChart, K8sChartProps, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm } from '@devops/k8s-cdk/k8s'
+import { K8sChart, K8sChartProps, K8sCRDs, K8sDomain, K8sGateway, K8sHelm } from '@devops/k8s-cdk/k8s'
 import { Deployment, EnvValue, Secret } from '@devops/k8s-cdk/plus'
 import { Middleware } from '@devops/k8s-cdk/traefik'
 
@@ -9,13 +9,14 @@ interface EnvironmentChartProps extends K8sChartProps {
   domain: K8sDomain
   issuer?: { name: string, kind: string }
   internalUsers: { user: string, pass: string }[]
+  twingate: { apiKey: string, network: string }
 }
 
 export class EnvironmentChart extends K8sChart {
   constructor(private readonly props: EnvironmentChartProps) {
     super('env', props)
 
-    const gateway = this.createGateway()
+    const { gateway } = this.createGateway()
 
     const { service: mongoUiService } = this.createMongo()
     const { service: redisUiService } = this.createRedis()
@@ -95,17 +96,31 @@ export class EnvironmentChart extends K8sChart {
       },
     })
 
-    new K8sGatewayCRDs(this, 'gateway-crds')
+    K8sCRDs.gateway(this, 'gateway-crds')
 
     const tls = certificate ? { certificateRefs: [{ name: secretName }] } : undefined
 
-    return new K8sGateway(this, 'gateway', {
+    const gateway = new K8sGateway(this, 'gateway', {
       gatewayClass: { controllerName: 'traefik.io/gateway-controller' },
       listeners: [
         { name: 'http', port: 8000, protocol: 'HTTP' },
         { name: 'https', port: 8443, protocol: 'HTTPS', tls },
       ],
     })
+
+    K8sCRDs.twingate(this, 'twingate-crds')
+
+    K8sHelm.twingateOperator(this, 'twingate-operator', {
+      values: {
+        twingateOperator: {
+          apiKey: this.props.twingate.apiKey,
+          network: this.props.twingate.network,
+          remoteNetworkName: this.resolve(`${this.props.env}-network`)
+        },
+      },
+    })
+
+    return { gateway }
   }
 
   createMongo () {
