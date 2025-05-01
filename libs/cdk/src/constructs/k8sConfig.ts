@@ -2,8 +2,10 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { EnvValue } from 'cdk8s-plus-32'
+import { ConfigMap, Secret } from 'cdk8s-plus-32'
 
+import { K8sChart } from './k8sChart'
+import { EnvFromSource } from '../../imports/k8s'
 import { execSync } from '../common/utils'
 
 
@@ -55,10 +57,11 @@ export class K8sConfig {
 		return Object.entries(this.exportAsJSON()).reduce((acc, [key, value]) => acc + `${key}=${value}\n`, '')
 	}
 
-	exportAsEnvValue () {
-		return Object.fromEntries(
-			Object.entries(this.exportAsJSON()).map(([key, value]) => [key, EnvValue.fromValue(value)])
-		)
+	exportAsEnvSource (scope: K8sChart, id: string) :EnvFromSource {
+		const typeConstructor = this.props.secret ? Secret : ConfigMap
+		const typeValue = new typeConstructor(scope, id, { stringData: this.exportAsJSON() })
+		const ref = { name: typeValue.name }
+		return { [this.props.secret ? 'secretRef' : 'configMapRef']: ref }
 	}
 
 	put(values: StringOrObject) {
