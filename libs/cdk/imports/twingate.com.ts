@@ -4,6 +4,452 @@ import { Construct } from 'constructs'
 
 
 /**
+ * TwingateConnector represents a Connector in Twingate.
+ *
+ * @schema TwingateConnector
+ */
+export class TwingateConnector extends ApiObject {
+  /**
+   * Returns the apiVersion and kind for "TwingateConnector"
+   */
+  public static readonly GVK: GroupVersionKind = {
+    apiVersion: 'twingate.com/v1beta',
+    kind: 'TwingateConnector',
+  }
+
+  /**
+   * Renders a Kubernetes manifest for "TwingateConnector".
+   *
+   * This can be used to inline resource manifests inside other objects (e.g. as templates).
+   *
+   * @param props initialization props
+   */
+  public static manifest(props: TwingateConnectorProps = {}): any {
+    return {
+      ...TwingateConnector.GVK,
+      ...toJson_TwingateConnectorProps(props),
+    }
+  }
+
+  /**
+   * Defines a "TwingateConnector" API object
+   * @param scope the scope in which to define this object
+   * @param id a scope-local name for the object
+   * @param props initialization props
+   */
+  public constructor(scope: Construct, id: string, props: TwingateConnectorProps = {}) {
+    super(scope, id, {
+      ...TwingateConnector.GVK,
+      ...props,
+    })
+  }
+
+  /**
+   * Renders the object to Kubernetes JSON.
+   */
+  public toJson(): any {
+    const resolved = super.toJson()
+
+    return {
+      ...TwingateConnector.GVK,
+      ...toJson_TwingateConnectorProps(resolved),
+    }
+  }
+}
+
+/**
+ * TwingateConnector represents a Connector in Twingate.
+ *
+ * @schema TwingateConnector
+ */
+export interface TwingateConnectorProps {
+  /**
+   * @schema TwingateConnector#metadata
+   */
+  readonly metadata?: ApiObjectMetadata;
+
+  /**
+   * TwingateConnectorSpec defines the desired state of TwingateConnector
+   *
+   * @schema TwingateConnector#spec
+   */
+  readonly spec?: TwingateConnectorSpec;
+
+}
+
+/**
+ * Converts an object of type 'TwingateConnectorProps' to JSON representation.
+ */
+ 
+export function toJson_TwingateConnectorProps(obj: TwingateConnectorProps | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'metadata': obj.metadata,
+    'spec': toJson_TwingateConnectorSpec(obj.spec),
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * TwingateConnectorSpec defines the desired state of TwingateConnector
+ *
+ * @schema TwingateConnectorSpec
+ */
+export interface TwingateConnectorSpec {
+  /**
+   * @schema TwingateConnectorSpec#id
+   */
+  readonly id?: string;
+
+  /**
+   * Name of the Connector (optional, if not specified Twingate will give a random name)
+   *
+   * @schema TwingateConnectorSpec#name
+   */
+  readonly name?: string;
+
+  /**
+   * Log level for the Connector (-1 to 7: -1 for no logs, 0 - least verbose, 7 - most verbose, default: 3).
+   *
+   * @schema TwingateConnectorSpec#logLevel
+   */
+  readonly logLevel?: number;
+
+  /**
+   * Enable real-time connection logs.
+   *
+   * @schema TwingateConnectorSpec#logAnalytics
+   */
+  readonly logAnalytics?: boolean;
+
+  /**
+   * Enable status notifications for the Connector.
+   *
+   * @schema TwingateConnectorSpec#hasStatusNotificationsEnabled
+   */
+  readonly hasStatusNotificationsEnabled?: boolean;
+
+  /**
+   * Image defines the image to use for the Connector.
+   *
+   * @schema TwingateConnectorSpec#image
+   */
+  readonly image?: TwingateConnectorSpecImage;
+
+  /**
+   * ImagePolicy defines the image to use for the Connector and a schedule to keep it up to date.
+   *
+   * @schema TwingateConnectorSpec#imagePolicy
+   */
+  readonly imagePolicy?: TwingateConnectorSpecImagePolicy;
+
+  /**
+   * Extra container configuration for the Connector Pod.
+   *
+   * @schema TwingateConnectorSpec#containerExtra
+   */
+  readonly containerExtra?: any;
+
+  /**
+   * Extra pod configuration for the Connector Pod.
+   *
+   * @schema TwingateConnectorSpec#podExtra
+   */
+  readonly podExtra?: any;
+
+  /**
+   * Extra annotations to add to the Connector Pod.
+   *
+   * @schema TwingateConnectorSpec#podAnnotations
+   */
+  readonly podAnnotations?: any;
+
+  /**
+   * Extra labels to add to the Connector Pod.
+   *
+   * @schema TwingateConnectorSpec#podLabels
+   */
+  readonly podLabels?: any;
+
+  /**
+   * SidecarContainers allows injecting additional containers to the Connector Pod.
+   *
+   * @schema TwingateConnectorSpec#sidecarContainers
+   */
+  readonly sidecarContainers?: any[];
+
+}
+
+/**
+ * Converts an object of type 'TwingateConnectorSpec' to JSON representation.
+ */
+ 
+export function toJson_TwingateConnectorSpec(obj: TwingateConnectorSpec | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'id': obj.id,
+    'name': obj.name,
+    'logLevel': obj.logLevel,
+    'logAnalytics': obj.logAnalytics,
+    'hasStatusNotificationsEnabled': obj.hasStatusNotificationsEnabled,
+    'image': toJson_TwingateConnectorSpecImage(obj.image),
+    'imagePolicy': toJson_TwingateConnectorSpecImagePolicy(obj.imagePolicy),
+    'containerExtra': obj.containerExtra,
+    'podExtra': obj.podExtra,
+    'podAnnotations': obj.podAnnotations,
+    'podLabels': obj.podLabels,
+    'sidecarContainers': obj.sidecarContainers?.map((y) => y),
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * Image defines the image to use for the Connector.
+ *
+ * @schema TwingateConnectorSpecImage
+ */
+export interface TwingateConnectorSpecImage {
+  /**
+   * Repository to use for the Connector.
+   *
+   * @schema TwingateConnectorSpecImage#repository
+   */
+  readonly repository?: string;
+
+  /**
+   * Tag to use for the Connector.
+   *
+   * @schema TwingateConnectorSpecImage#tag
+   */
+  readonly tag?: string;
+
+}
+
+/**
+ * Converts an object of type 'TwingateConnectorSpecImage' to JSON representation.
+ */
+ 
+export function toJson_TwingateConnectorSpecImage(obj: TwingateConnectorSpecImage | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'repository': obj.repository,
+    'tag': obj.tag,
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * ImagePolicy defines the image to use for the Connector and a schedule to keep it up to date.
+ *
+ * @schema TwingateConnectorSpecImagePolicy
+ */
+export interface TwingateConnectorSpecImagePolicy {
+  /**
+   * Provider determines how the operator looks for a new connector version.
+   * * dockerhub: Check Twingate's official DockerHub repository (`twingate/connector`) for new tags.
+   * * google: Check Google Container Registry specified by the `repository` value for new tags.
+   *
+   *
+   * @schema TwingateConnectorSpecImagePolicy#provider
+   */
+  readonly provider: TwingateConnectorSpecImagePolicyProvider;
+
+  /**
+   * Repository to use for pod's image.
+   *
+   * @schema TwingateConnectorSpecImagePolicy#repository
+   */
+  readonly repository?: string;
+
+  /**
+   * Cron schedule to check for new versions.
+   *
+   * @schema TwingateConnectorSpecImagePolicy#schedule
+   */
+  readonly schedule?: string;
+
+  /**
+   * Semver version specifier (ex: '^1.0.0'). Uses NPM spec: https://github.com/npm/node-semver#ranges
+   *
+   * @schema TwingateConnectorSpecImagePolicy#version
+   */
+  readonly version?: string;
+
+  /**
+   * Allow pre-release versions.
+   *
+   * @schema TwingateConnectorSpecImagePolicy#allowPrerelease
+   */
+  readonly allowPrerelease?: boolean;
+
+}
+
+/**
+ * Converts an object of type 'TwingateConnectorSpecImagePolicy' to JSON representation.
+ */
+ 
+export function toJson_TwingateConnectorSpecImagePolicy(obj: TwingateConnectorSpecImagePolicy | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'provider': obj.provider,
+    'repository': obj.repository,
+    'schedule': obj.schedule,
+    'version': obj.version,
+    'allowPrerelease': obj.allowPrerelease,
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * Provider determines how the operator looks for a new connector version.
+ * * dockerhub: Check Twingate's official DockerHub repository (`twingate/connector`) for new tags.
+ * * google: Check Google Container Registry specified by the `repository` value for new tags.
+ *
+ *
+ * @schema TwingateConnectorSpecImagePolicyProvider
+ */
+export enum TwingateConnectorSpecImagePolicyProvider {
+  /** dockerhub */
+  DOCKERHUB = "dockerhub",
+  /** google */
+  GOOGLE = "google",
+}
+
+
+/**
+ * TwingateGroup represents a Group in Twingate.
+ *
+ * @schema TwingateGroup
+ */
+export class TwingateGroup extends ApiObject {
+  /**
+   * Returns the apiVersion and kind for "TwingateGroup"
+   */
+  public static readonly GVK: GroupVersionKind = {
+    apiVersion: 'twingate.com/v1beta',
+    kind: 'TwingateGroup',
+  }
+
+  /**
+   * Renders a Kubernetes manifest for "TwingateGroup".
+   *
+   * This can be used to inline resource manifests inside other objects (e.g. as templates).
+   *
+   * @param props initialization props
+   */
+  public static manifest(props: TwingateGroupProps = {}): any {
+    return {
+      ...TwingateGroup.GVK,
+      ...toJson_TwingateGroupProps(props),
+    }
+  }
+
+  /**
+   * Defines a "TwingateGroup" API object
+   * @param scope the scope in which to define this object
+   * @param id a scope-local name for the object
+   * @param props initialization props
+   */
+  public constructor(scope: Construct, id: string, props: TwingateGroupProps = {}) {
+    super(scope, id, {
+      ...TwingateGroup.GVK,
+      ...props,
+    })
+  }
+
+  /**
+   * Renders the object to Kubernetes JSON.
+   */
+  public toJson(): any {
+    const resolved = super.toJson()
+
+    return {
+      ...TwingateGroup.GVK,
+      ...toJson_TwingateGroupProps(resolved),
+    }
+  }
+}
+
+/**
+ * TwingateGroup represents a Group in Twingate.
+ *
+ * @schema TwingateGroup
+ */
+export interface TwingateGroupProps {
+  /**
+   * @schema TwingateGroup#metadata
+   */
+  readonly metadata?: ApiObjectMetadata;
+
+  /**
+   * TwingateGroupSpec defines the desired state of TwingateGroup
+   *
+   * @schema TwingateGroup#spec
+   */
+  readonly spec?: TwingateGroupSpec;
+
+}
+
+/**
+ * Converts an object of type 'TwingateGroupProps' to JSON representation.
+ */
+ 
+export function toJson_TwingateGroupProps(obj: TwingateGroupProps | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'metadata': obj.metadata,
+    'spec': toJson_TwingateGroupSpec(obj.spec),
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * TwingateGroupSpec defines the desired state of TwingateGroup
+ *
+ * @schema TwingateGroupSpec
+ */
+export interface TwingateGroupSpec {
+  /**
+   * @schema TwingateGroupSpec#id
+   */
+  readonly id?: string;
+
+  /**
+   * Name of the group.
+   *
+   * @schema TwingateGroupSpec#name
+   */
+  readonly name: string;
+
+}
+
+/**
+ * Converts an object of type 'TwingateGroupSpec' to JSON representation.
+ */
+ 
+export function toJson_TwingateGroupSpec(obj: TwingateGroupSpec | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'id': obj.id,
+    'name': obj.name,
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+
+/**
  * TwingateResource represents a resource in Twingate.
  *
  * @schema TwingateResource
@@ -373,4 +819,276 @@ export function toJson_TwingateResourceSpecProtocolsUdpPorts(obj: TwingateResour
   return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
 }
  
+
+
+/**
+ * TwingateResourceAccess represents a resource access policy in Twingate. It allows to configure an access between a Resource and a Principal which is either a Group or a ServiceAccount.
+ *
+ * @schema TwingateResourceAccess
+ */
+export class TwingateResourceAccess extends ApiObject {
+  /**
+   * Returns the apiVersion and kind for "TwingateResourceAccess"
+   */
+  public static readonly GVK: GroupVersionKind = {
+    apiVersion: 'twingate.com/v1beta',
+    kind: 'TwingateResourceAccess',
+  }
+
+  /**
+   * Renders a Kubernetes manifest for "TwingateResourceAccess".
+   *
+   * This can be used to inline resource manifests inside other objects (e.g. as templates).
+   *
+   * @param props initialization props
+   */
+  public static manifest(props: TwingateResourceAccessProps = {}): any {
+    return {
+      ...TwingateResourceAccess.GVK,
+      ...toJson_TwingateResourceAccessProps(props),
+    }
+  }
+
+  /**
+   * Defines a "TwingateResourceAccess" API object
+   * @param scope the scope in which to define this object
+   * @param id a scope-local name for the object
+   * @param props initialization props
+   */
+  public constructor(scope: Construct, id: string, props: TwingateResourceAccessProps = {}) {
+    super(scope, id, {
+      ...TwingateResourceAccess.GVK,
+      ...props,
+    })
+  }
+
+  /**
+   * Renders the object to Kubernetes JSON.
+   */
+  public toJson(): any {
+    const resolved = super.toJson()
+
+    return {
+      ...TwingateResourceAccess.GVK,
+      ...toJson_TwingateResourceAccessProps(resolved),
+    }
+  }
+}
+
+/**
+ * TwingateResourceAccess represents a resource access policy in Twingate. It allows to configure an access between a Resource and a Principal which is either a Group or a ServiceAccount.
+ *
+ * @schema TwingateResourceAccess
+ */
+export interface TwingateResourceAccessProps {
+  /**
+   * @schema TwingateResourceAccess#metadata
+   */
+  readonly metadata?: ApiObjectMetadata;
+
+  /**
+   * TwingateResourceAccessSpec defines the desired state of TwingateResourceAccess
+   *
+   * @schema TwingateResourceAccess#spec
+   */
+  readonly spec?: TwingateResourceAccessSpec;
+
+}
+
+/**
+ * Converts an object of type 'TwingateResourceAccessProps' to JSON representation.
+ */
+ 
+export function toJson_TwingateResourceAccessProps(obj: TwingateResourceAccessProps | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'metadata': obj.metadata,
+    'spec': toJson_TwingateResourceAccessSpec(obj.spec),
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * TwingateResourceAccessSpec defines the desired state of TwingateResourceAccess
+ *
+ * @schema TwingateResourceAccessSpec
+ */
+export interface TwingateResourceAccessSpec {
+  /**
+   * principalId is the ID of the principal (Group/ServiceAccount) to provide access to the resource.
+   *
+   * @schema TwingateResourceAccessSpec#principalId
+   */
+  readonly principalId?: string;
+
+  /**
+   * groupRef specifies the TwingateGroup kubernetes object reference to provide access to.
+   *
+   * @schema TwingateResourceAccessSpec#groupRef
+   */
+  readonly groupRef?: TwingateResourceAccessSpecGroupRef;
+
+  /**
+   * principalExternalRef allows referencing a Principal (Group/ServiceAccount) by name.
+   *
+   * @schema TwingateResourceAccessSpec#principalExternalRef
+   */
+  readonly principalExternalRef?: TwingateResourceAccessSpecPrincipalExternalRef;
+
+  /**
+   * @schema TwingateResourceAccessSpec#securityPolicyId
+   */
+  readonly securityPolicyId?: string;
+
+  /**
+   * resourceRef specifies the TwingateResource reference to provide access to.
+   *
+   * @schema TwingateResourceAccessSpec#resourceRef
+   */
+  readonly resourceRef?: TwingateResourceAccessSpecResourceRef;
+
+}
+
+/**
+ * Converts an object of type 'TwingateResourceAccessSpec' to JSON representation.
+ */
+ 
+export function toJson_TwingateResourceAccessSpec(obj: TwingateResourceAccessSpec | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'principalId': obj.principalId,
+    'groupRef': toJson_TwingateResourceAccessSpecGroupRef(obj.groupRef),
+    'principalExternalRef': toJson_TwingateResourceAccessSpecPrincipalExternalRef(obj.principalExternalRef),
+    'securityPolicyId': obj.securityPolicyId,
+    'resourceRef': toJson_TwingateResourceAccessSpecResourceRef(obj.resourceRef),
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * groupRef specifies the TwingateGroup kubernetes object reference to provide access to.
+ *
+ * @schema TwingateResourceAccessSpecGroupRef
+ */
+export interface TwingateResourceAccessSpecGroupRef {
+  /**
+   * Name of the TwingateGroup object.
+   *
+   * @schema TwingateResourceAccessSpecGroupRef#name
+   */
+  readonly name?: string;
+
+  /**
+   * Namespace of TwingateGroup object.
+   *
+   * @schema TwingateResourceAccessSpecGroupRef#namespace
+   */
+  readonly namespace?: string;
+
+}
+
+/**
+ * Converts an object of type 'TwingateResourceAccessSpecGroupRef' to JSON representation.
+ */
+ 
+export function toJson_TwingateResourceAccessSpecGroupRef(obj: TwingateResourceAccessSpecGroupRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'name': obj.name,
+    'namespace': obj.namespace,
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * principalExternalRef allows referencing a Principal (Group/ServiceAccount) by name.
+ *
+ * @schema TwingateResourceAccessSpecPrincipalExternalRef
+ */
+export interface TwingateResourceAccessSpecPrincipalExternalRef {
+  /**
+   * Type of the external reference.
+   *
+   * @schema TwingateResourceAccessSpecPrincipalExternalRef#type
+   */
+  readonly type: TwingateResourceAccessSpecPrincipalExternalRefType;
+
+  /**
+   * Name of the external reference to match. (Note: name uniqueness is not enforce, if 2 entities match the same name, the first will be used)
+   *
+   * @schema TwingateResourceAccessSpecPrincipalExternalRef#name
+   */
+  readonly name: string;
+
+}
+
+/**
+ * Converts an object of type 'TwingateResourceAccessSpecPrincipalExternalRef' to JSON representation.
+ */
+ 
+export function toJson_TwingateResourceAccessSpecPrincipalExternalRef(obj: TwingateResourceAccessSpecPrincipalExternalRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'type': obj.type,
+    'name': obj.name,
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * resourceRef specifies the TwingateResource reference to provide access to.
+ *
+ * @schema TwingateResourceAccessSpecResourceRef
+ */
+export interface TwingateResourceAccessSpecResourceRef {
+  /**
+   * Name of the resource.
+   *
+   * @schema TwingateResourceAccessSpecResourceRef#name
+   */
+  readonly name?: string;
+
+  /**
+   * Namespace of the resource.
+   *
+   * @schema TwingateResourceAccessSpecResourceRef#namespace
+   */
+  readonly namespace?: string;
+
+}
+
+/**
+ * Converts an object of type 'TwingateResourceAccessSpecResourceRef' to JSON representation.
+ */
+ 
+export function toJson_TwingateResourceAccessSpecResourceRef(obj: TwingateResourceAccessSpecResourceRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined }
+  const result = {
+    'name': obj.name,
+    'namespace': obj.namespace,
+  }
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {})
+}
+ 
+
+/**
+ * Type of the external reference.
+ *
+ * @schema TwingateResourceAccessSpecPrincipalExternalRefType
+ */
+export enum TwingateResourceAccessSpecPrincipalExternalRefType {
+  /** group */
+  GROUP = "group",
+  /** serviceAccount */
+  SERVICE_ACCOUNT = "serviceAccount",
+}
 

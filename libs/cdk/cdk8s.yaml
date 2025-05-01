@@ -2,11 +2,3 @@ language: typescript
 app: npx tsx src/index.ts
 imports:
   - k8s
-  - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml
-  - https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.crds.yaml
-  - https://github.com/traefik/traefik-helm-chart/releases/download/v35.2.0/traefik.yaml
-
-  - https://raw.githubusercontent.com/Twingate/kubernetes-operator/refs/tags/v0.20.2/deploy/twingate-operator/crds/twingate.com.twingateconnector.yaml
-  - https://raw.githubusercontent.com/Twingate/kubernetes-operator/refs/tags/v0.20.2/deploy/twingate-operator/crds/twingate.com.twingategroup.yaml
-  - https://raw.githubusercontent.com/Twingate/kubernetes-operator/refs/tags/v0.20.2/deploy/twingate-operator/crds/twingate.com.twingateresourceaccesses.yaml
-  - https://raw.githubusercontent.com/Twingate/kubernetes-operator/refs/tags/v0.20.2/deploy/twingate-operator/crds/twingate.com.twingateresources.yaml

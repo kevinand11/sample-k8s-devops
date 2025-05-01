@@ -17,7 +17,7 @@
     "./twingate": "./imports/twingate.com.ts"
   },
   "scripts": {
-    "import": "cdk8s import",
+    "gen": "tsx ./src/scripts/gen.ts",
     "upgrade": "pnpm i cdk8s@latest cdk8s-cli@latest",
     "upgrade:next": "pnpm i cdk8s@next cdk8s-cli@next"
   },
@@ -29,6 +29,7 @@
     "zx": "^8.5.3"
   },
   "devDependencies": {
-    "cdk8s-cli": "^2.200.52"
+    "cdk8s-cli": "^2.200.52",
+    "tsx": "^4.19.4"
   }
 }
