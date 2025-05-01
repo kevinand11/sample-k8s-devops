@@ -3,10 +3,10 @@ name: CI/CD
 on:
   workflow_dispatch:
     inputs:
-      env:
+      environment:
         required: true
         default: 'dev'
-        description: The env to deploy to
+        description: The environment to deploy to
         type: choice
         options:
           - dev
@@ -25,7 +25,7 @@ jobs:
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-8)
 
-            echo "ENV=${{ github.event.inputs.env }}" >> $GITHUB_ENV
+            echo "ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
             echo "TAG=${SHORT_SHA}" >> $GITHUB_ENV
 
           elif [[ "$EVENT_NAME" == "push" ]]; then
@@ -66,8 +66,14 @@ jobs:
           echo Env = ${{ env.ENV }}
           echo Tag = ${{ env.TAG }}
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build devops app
-        run: pnpm -w build # TODO need to login to docker first
+        run: pnpm -w build
         env:
           ENVIRONMENT: ${{ env.ENV }}
           IMAGES_TAG: ${{ env.TAG }}
