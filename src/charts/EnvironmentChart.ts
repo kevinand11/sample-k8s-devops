@@ -57,7 +57,7 @@ export class EnvironmentChart extends K8sChart {
           'app.kubernetes.io/name': 'traefik',
           'app.kubernetes.io/instance': this.resolve(this.namespace),
         },
-        ports: [{ name: 'traefik', port: 90, targetPort: IntOrString.fromString('traefik') }]
+        ports: [{ name: 'traefik', port: 80, targetPort: IntOrString.fromString('traefik') }]
       }
     })
 
