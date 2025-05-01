@@ -90,7 +90,7 @@ export class K8sApp {
 		const result = await this.#buildChart(chart, options)
 		await chart.runHook('pre:deploy')
 		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id })
-		const applySetName = `configmaps/${chart.namespace}-${chart.node.id}`
+		const applySetName = `configmaps/${chart.namespace}-${chart.node.id}-apply-set`
 		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
 		await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${applySetName} -f -`, result)
 		await chart.runHook('post:deploy')

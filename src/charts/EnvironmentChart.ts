@@ -1,89 +1,43 @@
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
 import { K8sChart, K8sChartProps, K8sDomain, K8sGateway, K8sHelm } from '@devops/k8s-cdk/k8s'
-import { Deployment, EnvValue, Secret } from '@devops/k8s-cdk/plus'
-import { Middleware } from '@devops/k8s-cdk/traefik'
+import { Service as KubeService } from '@devops/k8s-cdk/kube'
+import { Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
+import { TwingateConnector, TwingateConnectorSpecImagePolicyProvider, TwingateResource, TwingateResourceAccess } from '@devops/k8s-cdk/twingate'
 
 interface EnvironmentChartProps extends K8sChartProps {
   env: string
   domain: K8sDomain
   issuer?: { name: string, kind: string }
-  internalUsers: { user: string, pass: string }[]
-  twingate: { apiKey: string, network: string }
+  twingate: { apiKey: string, network: string, teamId: string, policyId: string }
 }
 
 export class EnvironmentChart extends K8sChart {
+  private readonly gateway?: K8sGateway
   constructor(private readonly props: EnvironmentChartProps) {
     super('env', props)
 
-    const { gateway } = this.createGateway()
+    const { gateway } = this.createRouting()
+    this.gateway = gateway
 
-    const { service: mongoUiService } = this.createMongo()
-    const { service: redisUiService } = this.createRedis()
-    const { service: kafkaUiService } = this.createKafka()
-    const { service: appService } = this.createApp()
-
-    const externalRoutes = [
-      { name: 'app', backend: { name: appService.name, port: appService.port }, host: props.domain.base }
-    ]
-    const internalRoutes = [
-      { name: 'mongo', backend: { name: mongoUiService.name, port: mongoUiService.port }, host: props.domain.scope('mongo').base },
-      { name: 'redis', backend: { name: redisUiService.name, port: redisUiService.port }, host: props.domain.scope('redis').base },
-      { name: 'kafka', backend: { name: kafkaUiService.name, port: kafkaUiService.port }, host: props.domain.scope('kafka').base },
-      { name: 'traefik-dashboard', backend: { name: 'api@internal', kind: 'TraefikService' }, host: props.domain.scope('traefik').base },
-      { name: 'traefik-metrics', backend: { name: 'prometheus@internal', kind: 'TraefikService' }, host: props.domain.scope('traefik').base, path: '/metrics' }
-    ]
-
-    const basicAuthSecret = new Secret(this, 'internal-routes-basic-auth-secret', {
-      stringData: {
-        users: this.props.internalUsers
-          .map(({ user, pass }) => `${user}:${pass}`)
-          .join('\n')
-      }
-    })
-
-    const middleware = new Middleware(this, 'internal-routes-basic-auth-middleware', {
-      metadata: {},
-      spec: {
-        basicAuth: {
-          secret: basicAuthSecret.name,
-          removeHeader: true
-        }
-      }
-    })
-
-    for (const { name, ...routeProps } of externalRoutes) {
-      gateway.addRoute(
-        `${name}-external-route`,
-        { ...routeProps, listener: 'https' }
-      )
-    }
-
-    for (const { name, ...routeProps } of internalRoutes) {
-      gateway.addRoute(
-        `${name}-internal-route`,
-        {
-          ...routeProps,
-          listener: 'https',
-          extension: { group: 'traefik.io', kind: 'Middleware', name: middleware.name }
-        }
-      )
-    }
-
-    gateway.addRoute(`http-route`, {
-      listener: 'http',
-      redirect: { scheme: HttpRouteSpecRulesFiltersRequestRedirectScheme.HTTPS }
-    })
+    this.createMongo()
+    this.createRedis()
+    this.createKafka()
+    this.createApp()
   }
 
-  createGateway () {
+  createRouting () {
     const secretName = this.resolve('cert-manager-certificate-secret')
     const certificate = this.props.issuer ? new Certificate(this, 'cert-manager-certificate', {
       spec: {
         secretName,
         issuerRef: this.props.issuer,
         commonName: this.props.domain.common,
-        dnsNames: Object.keys({ [this.props.domain.base]: true, [this.props.domain.common]: true })
+        dnsNames: Object.keys({
+          [this.props.domain.base]: true, // root domain a.com
+          [this.props.domain.common]: true, // first level wildcard *.com
+          [this.props.domain.scope('*').common]: true // second level wildcard *.*.com
+        })
       }
     }) : undefined
 
@@ -106,6 +60,11 @@ export class EnvironmentChart extends K8sChart {
       ],
     })
 
+    gateway.addRoute(`http-route`, {
+      listener: 'http',
+      redirect: { scheme: HttpRouteSpecRulesFiltersRequestRedirectScheme.HTTPS }
+    })
+
     K8sHelm.twingateOperator(this, 'twingate-operator', {
       values: {
         twingateOperator: {
@@ -116,7 +75,47 @@ export class EnvironmentChart extends K8sChart {
       },
     })
 
-    return { gateway }
+    const connector = new TwingateConnector(this, 'twingate-connector', {
+      spec: {
+        name: this.resolve('twingate-connector'),
+        imagePolicy: { provider: TwingateConnectorSpecImagePolicyProvider.DOCKERHUB, schedule: '0 0 * * *' },
+        hasStatusNotificationsEnabled: true,
+      }
+    })
+
+    return { gateway, connector }
+  }
+
+  createInternalRoute (name: string, service: Service | KubeService) {
+    const internalDomain = this.props.domain.scope('internal')
+
+    const resource = new TwingateResource(this, `${name}-twingate-resourcer`, {
+      spec: {
+        name: this.resolve(`${name}-twingate-resourcer`),
+        address: this.resolveDns(service.name),
+        alias: internalDomain.scope(name).base
+      }
+    })
+
+    new TwingateResourceAccess(this, `${name}-twingate-resource-access`, {
+      spec: {
+        resourceRef: { name: resource.name, namespace: this.namespace },
+        principalId: this.props.twingate.teamId,
+        securityPolicyId: this.props.twingate.policyId,
+      }
+    })
+  }
+
+  createExternalRoute (name: string, service: Service, options: { host: string, path?: string }) {
+    this.gateway?.addRoute(
+      `${name}-external-route`,
+      {
+        backend: { name: service.name, port: service.port },
+        host: options.host,
+        path: options.path,
+        listener: 'https'
+      }
+    )
   }
 
   createMongo () {
@@ -146,10 +145,10 @@ export class EnvironmentChart extends K8sChart {
       (o) => o.kind === 'StatefulSet' && o.metadata.getLabel('app.kubernetes.io/component') === 'mongodb',
     )!
 
-    const hosts = new Array(replicas).fill(0).map((_, i) => `${statefulSet.name}-${i}.${service.name}.${this.namespace}.svc.cluster.local`)
+    const hosts = new Array(replicas).fill(0).map((_, i) => this.resolveDns(`${statefulSet.name}-${i}.${service.name}`))
     const url = `mongo://${auth.rootUser}:${auth.rootPassword}@${hosts.join(',')}:27017/replicaSet=${replicaSetName}`
 
-    const publicService= new Deployment(this, 'mongo-express', {
+    const uiService= new Deployment(this, 'mongo-express', {
       replicas: 1,
       containers: [{
         image: 'mongo-express:latest',
@@ -163,9 +162,11 @@ export class EnvironmentChart extends K8sChart {
           ME_CONFIG_BASICAUTH_ENABLED: EnvValue.fromValue('false'),
         }
       }]
-    }).exposeViaService()
+    }).exposeViaService({ ports: [{ port: 80, targetPort: 8081 }] })
 
-    return { url, service: publicService }
+    this.createInternalRoute('mongo-ui', uiService)
+
+    return { url }
   }
 
   createRedis () {
@@ -189,7 +190,7 @@ export class EnvironmentChart extends K8sChart {
 
     const redisUrl = `redis://${redisHost}`
 
-    const publicService = new Deployment(this, 'redis-commander', {
+    const uiService = new Deployment(this, 'redis-commander', {
       replicas: 1,
       containers: [{
         image: 'rediscommander/redis-commander:latest',
@@ -200,9 +201,11 @@ export class EnvironmentChart extends K8sChart {
           REDIS_PASSWORD: EnvValue.fromValue(password),
         }
       }]
-    }).exposeViaService()
+    }).exposeViaService({ ports: [{ port: 80, targetPort: 8081 }] })
 
-    return { redisUrl, service: publicService }
+    this.createInternalRoute('redis-ui', uiService)
+
+    return { redisUrl }
   }
 
   createKafka () {
@@ -238,7 +241,7 @@ export class EnvironmentChart extends K8sChart {
 
     const { url: debeziumUrl } = this.createDebezium(values)
 
-    const publicService = new Deployment(this, 'kafka-ui', {
+    const uiService = new Deployment(this, 'kafka-ui', {
       replicas: 1,
       containers: [{
         image: 'provectuslabs/kafka-ui:latest',
@@ -255,9 +258,11 @@ export class EnvironmentChart extends K8sChart {
           DYNAMIC_CONFIG_ENABLED: EnvValue.fromValue('true'),
         }
       }]
-    }).exposeViaService()
+    }).exposeViaService({ ports: [{ port: 80, targetPort: 8080 }] })
 
-    return { values, debeziumUrl, service: publicService }
+    this.createInternalRoute('kafka-ui', uiService)
+
+    return { values, debeziumUrl }
   }
 
   createDebezium (values: KafkaValues) {
@@ -298,6 +303,10 @@ export class EnvironmentChart extends K8sChart {
         securityContext: { ensureNonRoot: false, user: 0 },
       }]
     }).exposeViaService()
+
+    this.createExternalRoute('app', service, {
+      host: this.props.domain.base
+    })
 
     return { service }
   }

@@ -30,6 +30,10 @@ export class K8sChart extends AddK8sHooks(Chart) {
 		return `${this.node.id}-${name}`
 	}
 
+	resolveDns (name: string) {
+		return `${name}.${this.namespace}.svc.cluster.local`
+	}
+
 	async runHook (hook: K8sConstructHook) {
 		const nodes = this.app.node.findAll().filter((node) => SupportsK8sHooks(node))
 		for (const node of nodes) await node.runHook(hook)
