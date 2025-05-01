@@ -6,6 +6,13 @@ export interface K8sHelmProps extends Omit<HelmProps, 'releaseName'> { }
 
 export interface K8sStaticHelmProps extends Omit<K8sHelmProps, 'chart' | 'version'> {}
 
+const versions = {
+	certManager: '1.17.2',
+	gateway: '1.3.0',
+	traefik: '35.2.0',
+	twingateOperator: '0.20.2',
+}
+
 export class K8sHelm extends Helm {
 	constructor (scope: K8sChart, id: string, readonly props: K8sHelmProps) {
 		super(scope, id, {
@@ -33,7 +40,7 @@ export class K8sHelm extends Helm {
 			...props,
 			chart: 'cert-manager',
 			repo: 'https://charts.jetstack.io',
-			version: 'v1.17.2',
+			version: versions.certManager,
 		})
 	}
 
@@ -42,7 +49,7 @@ export class K8sHelm extends Helm {
 			...props,
 			chart: 'traefik',
 			repo: 'https://traefik.github.io/charts',
-			version: '35.1.0',
+			version: versions.traefik,
 		})
 	}
 
@@ -50,7 +57,33 @@ export class K8sHelm extends Helm {
 		return new K8sHelm(scope, id, {
 			...props,
 			chart: 'oci://ghcr.io/twingate/helmcharts/twingate-operator',
-			version: '0.20.2',
+			version: versions.twingateOperator,
 		})
+	}
+}
+
+
+export class K8sCRDs {
+	static certManager () {
+		return [`https://github.com/cert-manager/cert-manager/releases/download/v${versions.certManager}/cert-manager.crds.yaml`]
+	}
+
+	static gateway () {
+		return [`https://github.com/kubernetes-sigs/gateway-api/releases/download/v${versions.gateway}/standard-install.yaml`]
+	}
+
+	static traefik () {
+		const crdFiles = ['ingressroutes', 'ingressroutetcps', 'ingressrouteudps', 'middlewares', 'middlewaretcps', 'serverstransports', 'serverstransporttcps', 'tlsoptions', 'tlsstores', 'traefikservices']
+		return crdFiles.map((file) => `https://github.com/traefik/traefik-helm-chart/raw/refs/tags/v${versions.traefik}/traefik-crds/crds-files/traefik/traefik.io_${file}.yaml`)
+	}
+
+	static traefikHub () {
+		const crdFiles= ['accesscontrolpolicies', 'aiservices', 'apibundles', 'apicatalogitems', 'apiplans', 'apiportals', 'apiratelimits', 'apis', 'apiversions', 'managedsubscriptions']
+		return crdFiles.map((file) => `https://github.com/traefik/traefik-helm-chart/raw/refs/tags/v${versions.traefik}/traefik-crds/crds-files/hub/hub.traefik.io_${file}.yaml`)
+	}
+
+	static twingateOperator () {
+		const crdFiles = ['connector', 'group', 'resources', 'resourceaccesses']
+		return crdFiles.map((file) => `https://raw.githubusercontent.com/Twingate/kubernetes-operator/refs/tags/v${versions.twingateOperator}/deploy/twingate-operator/crds/twingate.com.twingate${file}.yaml`)
 	}
 }

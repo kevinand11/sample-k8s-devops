@@ -1,6 +1,6 @@
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
-import { K8sChart, K8sChartProps, K8sCRDs, K8sDomain, K8sGateway, K8sHelm } from '@devops/k8s-cdk/k8s'
+import { K8sChart, K8sChartProps, K8sDomain, K8sGateway, K8sHelm } from '@devops/k8s-cdk/k8s'
 import { Deployment, EnvValue, Secret } from '@devops/k8s-cdk/plus'
 import { Middleware } from '@devops/k8s-cdk/traefik'
 
@@ -96,8 +96,6 @@ export class EnvironmentChart extends K8sChart {
       },
     })
 
-    K8sCRDs.gateway(this, 'gateway-crds')
-
     const tls = certificate ? { certificateRefs: [{ name: secretName }] } : undefined
 
     const gateway = new K8sGateway(this, 'gateway', {
@@ -107,8 +105,6 @@ export class EnvironmentChart extends K8sChart {
         { name: 'https', port: 8443, protocol: 'HTTPS', tls },
       ],
     })
-
-    K8sCRDs.twingate(this, 'twingate-crds')
 
     K8sHelm.twingateOperator(this, 'twingate-operator', {
       values: {

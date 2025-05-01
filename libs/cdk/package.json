@@ -12,7 +12,9 @@
     "./cert-manager": "./imports/cert-manager.io.ts",
     "./gateway": "./imports/gateway.networking.k8s.io.ts",
     "./kube": "./imports/k8s.ts",
-    "./traefik": "./imports/traefik.io.ts"
+    "./traefik": "./imports/traefik.io.ts",
+    "./traefik-hub": "./imports/hub.traefik.io.ts",
+    "./twingate": "./imports/twingate.com.ts"
   },
   "scripts": {
     "import": "cdk8s import",
