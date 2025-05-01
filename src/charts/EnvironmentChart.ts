@@ -1,8 +1,9 @@
 import path from 'node:path'
 
+import { DockerPlatform } from '@devops/k8s-cdk'
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDockerPlatform, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm } from '@devops/k8s-cdk/k8s'
+import { K8sChart, K8sChartProps, K8sDockerImage, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm } from '@devops/k8s-cdk/k8s'
 import { Deployment, EnvValue, Secret } from '@devops/k8s-cdk/plus'
 import { Middleware } from '@devops/k8s-cdk/traefik'
 
@@ -287,7 +288,7 @@ export class EnvironmentChart extends K8sChart {
       tag: this.props.imagesTag,
       build: {
         context: path.resolve(__dirname, '../app'),
-        platforms: [K8sDockerPlatform.LINUX_AMD64]
+        platforms: [DockerPlatform.LINUX_AMD64]
       }
     })
 

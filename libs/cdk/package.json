@@ -5,6 +5,7 @@
   "license": "Apache-2.0",
   "private": true,
   "exports": {
+    ".": "./src/index.ts",
     "./k8s": "./src/constructs/index.ts",
     "./plus": "./src/cdk8s-plus.ts",
     "./acme.cert-manager": "./imports/acme.cert-manager.io.ts",
