@@ -2,7 +2,7 @@ import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
 import { K8sChart, K8sChartProps, K8sDomain, K8sGateway, K8sHelm } from '@devops/k8s-cdk/k8s'
 import { IntOrString, Service as KubeService } from '@devops/k8s-cdk/kube'
-import { Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
+import { Capability, ContainerSecurityContextProps, Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
 import { TwingateConnector, TwingateConnectorSpecImagePolicyProvider, TwingateResource, TwingateResourceAccess } from '@devops/k8s-cdk/twingate'
 
 interface EnvironmentChartProps extends K8sChartProps {
@@ -10,6 +10,17 @@ interface EnvironmentChartProps extends K8sChartProps {
   domain: K8sDomain
   issuer?: { name: string, kind: string }
   twingate: { apiKey: string, network: string, teamId: string, policyId: string }
+}
+
+const securityContext: ContainerSecurityContextProps = {
+  ensureNonRoot: true,
+  user: 1000,
+  group: 1000,
+  allowPrivilegeEscalation: false,
+  readOnlyRootFilesystem: true,
+  "capabilities": {
+    "drop": [Capability.ALL]
+  }
 }
 
 export class EnvironmentChart extends K8sChart {
@@ -166,7 +177,7 @@ export class EnvironmentChart extends K8sChart {
       containers: [{
         image: 'mongo-express:latest',
         portNumber: 8081,
-        securityContext: { ensureNonRoot: false, user: 0 },
+        securityContext,
         envVariables: {
           ME_CONFIG_MONGODB_SERVER: EnvValue.fromValue(service.name),
           ME_CONFIG_MONGODB_ADMINUSERNAME: EnvValue.fromValue(auth.rootUser),
@@ -208,7 +219,7 @@ export class EnvironmentChart extends K8sChart {
       containers: [{
         image: 'rediscommander/redis-commander:latest',
         portNumber: 8081,
-        securityContext: { ensureNonRoot: false, user: 0 },
+        securityContext,
         envVariables: {
           REDIS_HOST: EnvValue.fromValue(redisHost),
           REDIS_PASSWORD: EnvValue.fromValue(password),
@@ -259,7 +270,7 @@ export class EnvironmentChart extends K8sChart {
       containers: [{
         image: 'provectuslabs/kafka-ui:latest',
         portNumber: 8080,
-        securityContext: { ensureNonRoot: false, user: 0 },
+        securityContext,
         envVariables: {
           KAFKA_CLUSTERS_0_NAME: EnvValue.fromValue('local'),
           KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: EnvValue.fromValue(values.host),
@@ -284,7 +295,7 @@ export class EnvironmentChart extends K8sChart {
       containers: [{
         image: 'debezium/connect:2.7.3.Final',
         portNumber: 8083,
-        securityContext: { ensureNonRoot: false, user: 0 },
+        securityContext,
         envVariables: {
           GROUP_ID: EnvValue.fromValue(this.node.id),
           BOOTSTRAP_SERVERS: EnvValue.fromValue(values.host),
@@ -312,10 +323,14 @@ export class EnvironmentChart extends K8sChart {
       replicas: 1,
       containers: [{
         image: 'traefik/whoami:latest',
-        portNumber: 80,
-        securityContext: { ensureNonRoot: false, user: 0 },
+        envVariables: {
+          WHOAMI_PORT_NUMBER: EnvValue.fromValue('8080'),
+          WHOAMI_NAME: EnvValue.fromValue('Who am I?')
+        },
+        portNumber: 8080,
+        securityContext,
       }]
-    }).exposeViaService()
+    }).exposeViaService({ ports: [{ port: 80, targetPort: 8080 }] })
 
     this.createExternalRoute('app', service, {
       host: this.props.domain.base
