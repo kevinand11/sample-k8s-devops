@@ -25,7 +25,6 @@ const infraChart = new InfraChart({
 const envChart = new EnvironmentChart({
   namespace: `stranerd-env-${env}`,
   env,
-  imagesTag: getRequiredProcessEnv('IMAGES_TAG'),
   domain,
   issuer: infraChart.issuer ? { name: infraChart.issuer.name, kind: infraChart.issuer.kind } : undefined,
   internalUsers,

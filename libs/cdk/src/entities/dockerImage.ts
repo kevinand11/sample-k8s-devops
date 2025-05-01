@@ -25,6 +25,7 @@ export interface DockerImageProps {
 		args?: Record<string, string>
 		tags?: Record<string, string>
 	}
+	preBuild?: () => void
 }
 
 export class DockerImage {
@@ -42,6 +43,7 @@ export class DockerImage {
 	}
 
 	async build () {
+		await this.props.preBuild?.()
 		const build = this.props.build
 		const args: string[] = []
 		const path = typeof build === 'object' ? build.context : build

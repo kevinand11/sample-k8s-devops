@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "k8s": "NODE_OPTIONS='-r dotenv/config' tsx src/index.ts",
+    "build": "NODE_OPTIONS='-r dotenv/config' tsx src/build.ts",
     "lint": "eslint libs/*/src src",
     "lint:staged": "lint-staged",
     "prepare": "husky"

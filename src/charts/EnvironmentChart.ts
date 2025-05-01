@@ -1,14 +1,10 @@
-import path from 'node:path'
-
-import { DockerPlatform } from '@devops/k8s-cdk'
 import { Certificate } from '@devops/k8s-cdk/cert-manager'
 import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/gateway'
-import { K8sChart, K8sChartProps, K8sDockerImage, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm } from '@devops/k8s-cdk/k8s'
+import { K8sChart, K8sChartProps, K8sDomain, K8sGateway, K8sGatewayCRDs, K8sHelm } from '@devops/k8s-cdk/k8s'
 import { Deployment, EnvValue, Secret } from '@devops/k8s-cdk/plus'
 import { Middleware } from '@devops/k8s-cdk/traefik'
 
 interface EnvironmentChartProps extends K8sChartProps {
-  imagesTag: string
   env: string
   domain: K8sDomain
   issuer?: { name: string, kind: string }
@@ -283,15 +279,6 @@ export class EnvironmentChart extends K8sChart {
   }
 
   createApp () {
-    new K8sDockerImage(this, 'docker', {
-      name: 'kevinand11/k8s-demo-app',
-      tag: this.props.imagesTag,
-      build: {
-        context: path.resolve(__dirname, '../app'),
-        platforms: [DockerPlatform.LINUX_AMD64]
-      }
-    })
-
     const service = new Deployment(this, 'traefik-whoami', {
       replicas: 1,
       containers: [{
