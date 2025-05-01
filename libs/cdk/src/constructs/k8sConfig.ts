@@ -34,15 +34,11 @@ export class K8sConfig {
 		return [encrypted ? 'secret' : 'configmap', namespace ? `-n=${namespace}` : undefined, name].filter(Boolean).join(' ')
 	}
 
-	get (name: string, required = false) {
+	get<T = string>(name: string, parser?: (val: string) => T) {
 		const value = this.exportAsJSON()[name]
-		if (required && !value) throw new Error(`${name} not found in config values`)
-		return value
-	}
-
-	getAsJSON(name: string, required = false) {
-		const value = this.get(name, required)
-		return JSON.parse(value)
+		if (!parser) return value
+		if (value === undefined) throw new Error(`${name} not found in config values`)
+		return parser(value)
 	}
 
 	exportAsJSON (): Readonly<StringOrObject> {
