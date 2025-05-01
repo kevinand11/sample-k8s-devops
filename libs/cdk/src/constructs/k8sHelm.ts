@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto'
+
 import { ApiObject, Helm, HelmProps } from 'cdk8s'
 
 import { K8sChart } from './k8sChart'
+import { K8sConstruct } from './k8sConstruct'
 
 export interface K8sHelmProps extends Omit<HelmProps, 'releaseName'> { }
 
@@ -13,13 +16,19 @@ const versions = {
 	twingateOperator: '0.20.2',
 }
 
-export class K8sHelm extends Helm {
-	constructor (scope: K8sChart, id: string, readonly props: K8sHelmProps) {
-		super(scope, id, {
-			namespace: scope.namespace,
-			releaseName: scope.node.id,
-			...props,
+export class K8sHelm extends K8sConstruct {
+	private helm?: Helm
+	constructor (private readonly scope: K8sChart, private readonly id: string, private readonly props: K8sHelmProps) {
+		super(scope, id)
+	}
+
+	get apiObjects () {
+		if (!this.helm) this.helm = new Helm(this.scope, `${this.id}-include-${randomUUID()}`, {
+			namespace: this.scope.namespace,
+			releaseName: this.scope.node.id,
+			...this.props,
 		})
+		return this.helm.apiObjects
 	}
 
 	getTypedObject<T extends ApiObject>(condition: (o: ApiObject) => boolean) : T | undefined {

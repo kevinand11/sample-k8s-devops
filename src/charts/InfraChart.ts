@@ -1,6 +1,5 @@
-import { Include } from '@devops/k8s-cdk'
 import { ClusterIssuer } from '@devops/k8s-cdk/cert-manager'
-import { K8sChart, K8sChartProps, K8sCRDs, K8sHelm } from '@devops/k8s-cdk/k8s'
+import { K8sChart, K8sChartProps, K8sCRDs, K8sHelm, K8sInclude } from '@devops/k8s-cdk/k8s'
 import { Secret } from '@devops/k8s-cdk/plus'
 
 interface InfraChartProps extends K8sChartProps {
@@ -22,7 +21,7 @@ export class InfraChart extends K8sChart {
       K8sCRDs.twingateOperator()
     ].flat()
 
-    crds.map((crd) => new Include(this, `crd-${crd}`, { url: crd }))
+    crds.map((crd) => new K8sInclude(this, `crd-${crd}`, { url: crd }))
 
     const { issuer } = this.createIssuer()
     this.issuer = issuer
