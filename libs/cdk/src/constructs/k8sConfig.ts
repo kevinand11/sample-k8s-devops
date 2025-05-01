@@ -6,7 +6,7 @@ import { ConfigMap, Secret } from 'cdk8s-plus-32'
 
 import { K8sChart } from './k8sChart'
 import { EnvFromSource } from '../../imports/k8s'
-import { execSync } from '../common/utils'
+import { execSync, upsertNamespace } from '../common/utils'
 
 
 interface K8sConfigProps {
@@ -19,16 +19,9 @@ interface K8sConfigProps {
 type StringOrObject<T = string> = Record<string, T>
 
 export class K8sConfig {
-	private values: StringOrObject
+	#values?: StringOrObject
 	private constructor (private readonly props: K8sConfigProps) {
 		if (!props.name) throw new Error('name is required for K8sEnv')
-		if (props.namespace) execSync(`kubectl get ns ${props.namespace} > /dev/null 2>&1 || kubectl create ns ${props.namespace}`)
-		let createCommonArgs = this.#commonArgs
-		if (createCommonArgs.startsWith('secret ')) createCommonArgs = `secret generic ${createCommonArgs.slice(6)}`
-		execSync(`kubectl get ${this.#commonArgs} > /dev/null 2>&1 || kubectl create ${createCommonArgs}`)
-		const res = execSync(`kubectl get ${this.#commonArgs} -o json`)
-		const values = JSON.parse(res).data
-		this.values = values
 	}
 
 	get #commonArgs () {
@@ -43,9 +36,21 @@ export class K8sConfig {
 		return parser(value)
 	}
 
+	#read () {
+		if (!this.#values) {
+			if (this.props.namespace) upsertNamespace(this.props.namespace)
+			let createCommonArgs = this.#commonArgs
+			if (createCommonArgs.startsWith('secret ')) createCommonArgs = `secret generic ${createCommonArgs.slice(6)}`
+			execSync(`kubectl get ${this.#commonArgs} > /dev/null 2>&1 || kubectl create ${createCommonArgs}`)
+			const res = execSync(`kubectl get ${this.#commonArgs} -o json`)
+			this.#values = JSON.parse(res).data
+		}
+		return this.#values!
+	}
+
 	exportAsJSON (): Readonly<StringOrObject> {
 		const values = Object.fromEntries(
-			Object.entries(this.values).map(([key, value]) => [key, this.props.secret ? Buffer.from(value, 'base64').toString('utf-8') : value])
+			Object.entries(this.#read()).map(([key, value]) => [key, this.props.secret ? Buffer.from(value, 'base64').toString('utf-8') : value])
 		)
 		return Object.freeze({
 			...(this.props.parent?.exportAsJSON()),
@@ -65,7 +70,8 @@ export class K8sConfig {
 	}
 
 	put(values: StringOrObject) {
-		this.values = values
+		this.#read()
+		this.#values = values
 		const filePath = path.resolve(os.tmpdir(), '.k8s', crypto.randomUUID())
 		mkdirSync(path.dirname(filePath), { recursive: true })
 		writeFileSync(filePath, JSON.stringify({ [this.props.secret ? 'stringData' : 'data']: values }))

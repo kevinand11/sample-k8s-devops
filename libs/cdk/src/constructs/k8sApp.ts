@@ -5,7 +5,7 @@ import { Command } from 'commander'
 
 
 import { K8sChart } from './k8sChart'
-import { createFolderIfNotExists, exec } from '../common/utils'
+import { createFolderIfNotExists, exec, upsertNamespace } from '../common/utils'
 
 const toolFolder = path.resolve(process.cwd(), '.k8s-cdk')
 
@@ -91,7 +91,7 @@ export class K8sApp {
 		await chart.runHook('pre:deploy')
 		if (options.fresh) await this.#deleteChart(chart, { ...options, chartId: chart.node.id })
 		const applySetName = `configmaps/${chart.namespace}-${chart.node.id}-apply-set`
-		await exec(`kubectl get ns ${chart.namespace} > /dev/null 2>&1 || kubectl create ns ${chart.namespace}`)
+		upsertNamespace(chart.namespace)
 		await exec(`KUBECTL_APPLYSET=true kubectl apply --prune -n=${chart.namespace} --applyset=${applySetName} -f -`, result)
 		await chart.runHook('post:deploy')
 	}

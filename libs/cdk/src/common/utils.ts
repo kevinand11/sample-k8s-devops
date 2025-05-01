@@ -3,6 +3,16 @@ import { access, constants, mkdir } from 'node:fs/promises'
 
 import { $ } from 'zx'
 
+export function upsertNamespace (ns: string) {
+	const yaml = `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${ns}
+`
+    execCommandSync(`kubectl apply -f -`, { input: yaml, stdio: ['pipe'] })
+}
+
 export function execSync (command: string) {
 	const result = execCommandSync(command)
 	return result.toString().trim()
