@@ -21,7 +21,7 @@ export class InfraChart extends K8sChart {
     const crds = [
       K8sCRDs.certManager(),
       K8sCRDs.gateway(),
-      K8sCRDs.prometheus(),
+      // K8sCRDs.prometheus(),
       K8sCRDs.traefik(),
       K8sCRDs.traefikHub(),
       K8sCRDs.twingateOperator()
@@ -32,7 +32,8 @@ export class InfraChart extends K8sChart {
     const { issuer } = this.createIssuer()
     this.issuer = issuer
 
-    this.createMonitoring()
+    this.createTwingateConnector()
+    // this.createMonitoring()
   }
 
   createIssuer () {
@@ -93,7 +94,7 @@ export class InfraChart extends K8sChart {
         twingateOperator: {
           apiKey: this.props.twingateConnect.apiKey,
           network: this.props.twingateConnect.account,
-          remoteNetworkName: this.props.twingateConnect.remoteNetworkName,
+          remoteNetworkId: this.props.twingateConnect.remoteNetworkId,
         },
       },
     })

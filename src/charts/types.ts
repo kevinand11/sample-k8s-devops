@@ -9,7 +9,7 @@ export type TwingateAccess = {
 export type TwingateConnect = {
 	apiKey: string
 	account: string
-	remoteNetworkName: string
+	remoteNetworkId: string
 }
 
 export type KafkaValues = {
