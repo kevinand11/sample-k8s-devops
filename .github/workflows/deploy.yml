@@ -78,6 +78,23 @@ jobs:
           ENVIRONMENT: ${{ env.ENV }}
           IMAGES_TAG: ${{ env.TAG }}
 
+      - name: Setup Kubernetes tools
+        uses: yokawasa/action-setup-kube-tools@v0.11.2
+        with:
+          setup-tools: |
+            kubectl
+            helm
+          kubectl: '1.32.2'
+          helm: '3.17.3'
+
+      - name: Authorize Kubectl
+        uses: azure/k8s-set-context@v4.0.1
+        with:
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - run: |
+          kubectl get ns
+
       - name: Deploy devops app #TODO: need to login to k8s first
         run: pnpm -w k8s build # change to deploy --include devops
         env:
