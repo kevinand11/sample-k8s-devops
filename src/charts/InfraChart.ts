@@ -1,10 +1,15 @@
 import { ClusterIssuer } from '@devops/k8s-cdk/cert-manager'
 import { K8sChart, K8sChartProps, K8sCRDs, K8sHelm, K8sInclude } from '@devops/k8s-cdk/k8s'
 import { Secret } from '@devops/k8s-cdk/plus'
+import { TwingateConnector, TwingateConnectorSpecImagePolicyProvider } from '@devops/k8s-cdk/twingate'
+
+import { createInternalRoute, TwingateAccess, TwingateConnect } from './types'
 
 interface InfraChartProps extends K8sChartProps {
   certEmail: string
   cloudflareApiToken: string
+  twingateAccess: TwingateAccess
+  twingateConnect: TwingateConnect
 }
 
 export class InfraChart extends K8sChart {
@@ -82,6 +87,26 @@ export class InfraChart extends K8sChart {
     return { issuer }
   }
 
+  createTwingateConnector () {
+    K8sHelm.twingateOperator(this, 'twingate-operator', {
+      values: {
+        twingateOperator: {
+          apiKey: this.props.twingateConnect.apiKey,
+          network: this.props.twingateConnect.account,
+          remoteNetworkName: this.props.twingateConnect.remoteNetworkName,
+        },
+      },
+    })
+
+    new TwingateConnector(this, 'twingate-connector', {
+      spec: {
+        name: this.resolve('twingate-connector'),
+        imagePolicy: { provider: TwingateConnectorSpecImagePolicyProvider.DOCKERHUB, schedule: '0 0 * * *' },
+        hasStatusNotificationsEnabled: true,
+      }
+    })
+  }
+
   createMonitoring () {
     const loki = new K8sHelm(this, 'loki', {
       chart: 'loki',
@@ -114,6 +139,8 @@ export class InfraChart extends K8sChart {
       }
     })
 
-    const _grafanaService = prometheus.apiObjects.find((o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/name') === 'grafana')
+    const grafanaService = prometheus.apiObjects.find((o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/name') === 'grafana')!
+
+    createInternalRoute(this, { name: 'grafana', service: grafanaService.name, access: this.props.twingateAccess })
   }
 }

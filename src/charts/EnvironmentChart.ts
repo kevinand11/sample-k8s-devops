@@ -3,13 +3,14 @@ import { HttpRouteSpecRulesFiltersRequestRedirectScheme } from '@devops/k8s-cdk/
 import { K8sChart, K8sChartProps, K8sDomain, K8sGateway, K8sHelm } from '@devops/k8s-cdk/k8s'
 import { IntOrString, Service as KubeService } from '@devops/k8s-cdk/kube'
 import { Capability, ContainerSecurityContextProps, Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
-import { TwingateConnector, TwingateConnectorSpecImagePolicyProvider, TwingateResource, TwingateResourceAccess } from '@devops/k8s-cdk/twingate'
+
+import { createInternalRoute, KafkaValues, TwingateAccess } from './types'
 
 interface EnvironmentChartProps extends K8sChartProps {
   env: string
   domain: K8sDomain
   issuer?: { name: string, kind: string }
-  twingate: { apiKey: string, network: string, teamId: string, policyId: string }
+  twingateAccess: TwingateAccess
 }
 
 const securityContext: ContainerSecurityContextProps = {
@@ -87,47 +88,9 @@ export class EnvironmentChart extends K8sChart {
       redirect: { scheme: HttpRouteSpecRulesFiltersRequestRedirectScheme.HTTPS }
     })
 
-    K8sHelm.twingateOperator(this, 'twingate-operator', {
-      values: {
-        twingateOperator: {
-          apiKey: this.props.twingate.apiKey,
-          network: this.props.twingate.network,
-          remoteNetworkName: this.resolve(`${this.props.env}-network`)
-        },
-      },
-    })
+    createInternalRoute(this, { name: 'traefik', service: service.name, access: this.props.twingateAccess })
 
-    const connector = new TwingateConnector(this, 'twingate-connector', {
-      spec: {
-        name: this.resolve('twingate-connector'),
-        imagePolicy: { provider: TwingateConnectorSpecImagePolicyProvider.DOCKERHUB, schedule: '0 0 * * *' },
-        hasStatusNotificationsEnabled: true,
-      }
-    })
-
-    this.createInternalRoute('traefik', service)
-
-    return { gateway, connector }
-  }
-
-  createInternalRoute (name: string, service: Service | KubeService) {
-    const internalDomain = this.props.domain.scope('internal')
-
-    const resource = new TwingateResource(this, `${name}-twingate-resourcer`, {
-      spec: {
-        name: this.resolve(`${name}-twingate-resourcer`),
-        address: this.resolveDns(service.name),
-        alias: internalDomain.scope(name).base
-      }
-    })
-
-    new TwingateResourceAccess(this, `${name}-twingate-resource-access`, {
-      spec: {
-        resourceRef: { name: resource.name, namespace: this.namespace },
-        principalId: this.props.twingate.teamId,
-        securityPolicyId: this.props.twingate.policyId,
-      }
-    })
+    return { gateway }
   }
 
   createExternalRoute (name: string, service: Service, options: { host: string, path?: string }) {
@@ -188,7 +151,7 @@ export class EnvironmentChart extends K8sChart {
       }]
     }).exposeViaService({ ports: [{ port: 80, targetPort: 8081 }] })
 
-    this.createInternalRoute('mongo-ui', uiService)
+    createInternalRoute(this, { name: 'mongo-ui', service: uiService.name, access: this.props.twingateAccess })
 
     return { url }
   }
@@ -227,7 +190,7 @@ export class EnvironmentChart extends K8sChart {
       }]
     }).exposeViaService({ ports: [{ port: 80, targetPort: 8081 }] })
 
-    this.createInternalRoute('redis-ui', uiService)
+    createInternalRoute(this, { name: 'redis-ui', service: uiService.name, access: this.props.twingateAccess })
 
     return { redisUrl }
   }
@@ -284,7 +247,7 @@ export class EnvironmentChart extends K8sChart {
       }]
     }).exposeViaService({ ports: [{ port: 80, targetPort: 8080 }] })
 
-    this.createInternalRoute('kafka-ui', uiService)
+    createInternalRoute(this, { name: 'kafka-ui', service: uiService.name, access: this.props.twingateAccess })
 
     return { values, debeziumUrl }
   }
@@ -337,14 +300,5 @@ export class EnvironmentChart extends K8sChart {
     })
 
     return { service }
-  }
-}
-
-type KafkaValues = {
-  host: string
-  auth: {
-    securityProtocol: string
-    saslMechanism: string
-    saslJaasConfig: string
   }
 }

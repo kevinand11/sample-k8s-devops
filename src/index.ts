@@ -11,7 +11,7 @@ const cloudflareZoneId = devopsConfig.get('CLOUDFLARE_ZONE_ID')
 const cloudflareApiToken = devopsConfig.get('CLOUDFLARE_API_TOKEN')
 const domainName = devopsConfig.get('DOMAIN_NAME')
 const domainCertEmail = devopsConfig.get('DOMAIN_CERT_EMAIL')
-const twingate = devopsConfig.get('TWINGATE', JSON.parse)
+const twingateConnect = devopsConfig.get('TWINGATE_CONNECT', JSON.parse)
 
 const baseDomain = K8sDomain.of({ name: domainName, wildcard: true })
 const domain = env === 'prod' ? baseDomain : baseDomain.scope(env)
@@ -20,6 +20,8 @@ const infraChart = new InfraChart({
   namespace: 'stranerd-infra',
   certEmail: domainCertEmail,
   cloudflareApiToken,
+  twingateAccess: devopsConfig.get(`TWINGATE_ACCESS_INFRA`, JSON.parse),
+  twingateConnect,
 })
 
 const envChart = new EnvironmentChart({
@@ -27,7 +29,7 @@ const envChart = new EnvironmentChart({
   env,
   domain,
   issuer: infraChart.issuer ? { name: infraChart.issuer.name, kind: infraChart.issuer.kind } : undefined,
-  twingate,
+  twingateAccess: devopsConfig.get(`TWINGATE_ACCESS_${env.toUpperCase()}`, JSON.parse),
 })
 
 const common = {
