@@ -1,3 +1,5 @@
+import { Construct } from 'constructs'
+
 type HookEvent = 'build' | 'deploy' | 'diff' | 'delete'
 export type K8sConstructHook = `pre:${HookEvent}` | `post:${HookEvent}`
 export type K8sConstructHookCallback = () => void | Promise<void>
@@ -9,8 +11,9 @@ interface K8sHooks {
 
 const hooksSymbol = Symbol.for('k8s.hooks')
 
-export function AddK8sHooks<T extends { new(...args: any[]) }> (constructor: T) {
+export function AddK8sHooks<T extends Construct> (constructor: { new (...args: any[]): T }) {
 	const hooks: Partial<Record<K8sConstructHook, K8sConstructHookCallback[]>> = {}
+	// @ts-expect-error invalid extends
 	return class extends constructor implements K8sHooks {
 		constructor (...args) {
 			super(...args)

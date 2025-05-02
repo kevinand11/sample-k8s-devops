@@ -12,6 +12,7 @@ export interface K8sStaticHelmProps extends Omit<K8sHelmProps, 'chart' | 'versio
 const versions = {
 	certManager: '1.17.2',
 	gateway: '1.3.0',
+	prometheus: '71.2.0',
 	traefik: '35.2.0',
 	twingateOperator: '0.20.2',
 }
@@ -56,6 +57,15 @@ export class K8sHelm extends K8sConstruct {
 		})
 	}
 
+	static prometheus (scope: K8sChart, id: string, props: K8sStaticHelmProps) {
+		return new K8sHelm(scope, id, {
+			...props,
+			chart: 'kube-prometheus-stack',
+			repo: 'https://prometheus-community.github.io/helm-charts',
+			version: versions.prometheus,
+		})
+	}
+
 	static traefik (scope: K8sChart, id: string, props: K8sStaticHelmProps) {
 		return new K8sHelm(scope, id, {
 			...props,
@@ -82,6 +92,11 @@ export class K8sCRDs {
 
 	static gateway () {
 		return [`https://github.com/kubernetes-sigs/gateway-api/releases/download/v${versions.gateway}/standard-install.yaml`]
+	}
+
+	static prometheus () {
+		const crdFiles = ['alertmanagerconfigs', 'alertmanagers', 'podmonitors', 'probes', 'prometheusagents', 'prometheuses', 'prometheusrules', 'scrapeconfigs', 'servicemonitors', 'thanosrulers']
+		return crdFiles.map((file) => `https://github.com/prometheus-community/helm-charts/raw/refs/tags/kube-prometheus-stack-${versions.prometheus}/charts/kube-prometheus-stack/charts/crds/crds/crd-${file}.yaml`)
 	}
 
 	static traefik () {
