@@ -1,4 +1,4 @@
-import { images } from './charts/images'
+import { images } from './charts/commons/images'
 
 async function main () {
 	for (const [app, image] of Object.entries(images)) {

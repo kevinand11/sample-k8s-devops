@@ -4,7 +4,7 @@ import { K8sChart, K8sChartProps, K8sDomain, K8sGateway, K8sHelm } from '@devops
 import { IntOrString, Service as KubeService } from '@devops/k8s-cdk/kube'
 import { Capability, ContainerSecurityContextProps, Deployment, EnvValue, Service } from '@devops/k8s-cdk/plus'
 
-import { createInternalRoute, KafkaValues, TwingateAccess } from './types'
+import { createInternalRoute, KafkaValues, TwingateAccess } from './commons/types'
 
 interface EnvironmentChartProps extends K8sChartProps {
   env: string

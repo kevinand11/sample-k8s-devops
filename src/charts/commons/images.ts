@@ -2,7 +2,7 @@ import path from 'path'
 
 import { DockerImage, DockerPlatform } from '@devops/k8s-cdk'
 
-import { getRequiredProcessEnv } from '../utils'
+import { getRequiredProcessEnv } from '../../utils'
 
 const tag = getRequiredProcessEnv('IMAGES_TAG')
 

@@ -3,7 +3,7 @@ import { K8sChart, K8sChartProps, K8sCRDs, K8sHelm, K8sInclude } from '@devops/k
 import { Secret } from '@devops/k8s-cdk/plus'
 import { TwingateConnector, TwingateConnectorSpecImagePolicyProvider } from '@devops/k8s-cdk/twingate'
 
-import { createInternalRoute, TwingateAccess, TwingateConnect } from './types'
+import { TwingateAccess, TwingateConnect } from './commons/types'
 
 interface InfraChartProps extends K8sChartProps {
   certEmail: string
@@ -22,7 +22,6 @@ export class InfraChart extends K8sChart {
     const crds = [
       K8sCRDs.certManager(),
       K8sCRDs.gateway(),
-      // K8sCRDs.prometheus(),
       K8sCRDs.traefik(),
       K8sCRDs.traefikHub(),
       K8sCRDs.twingateOperator()
@@ -34,7 +33,6 @@ export class InfraChart extends K8sChart {
     this.issuer = issuer
 
     this.createTwingateConnector()
-    // this.createMonitoring()
     this.createAPM()
   }
 
@@ -108,43 +106,6 @@ export class InfraChart extends K8sChart {
         hasStatusNotificationsEnabled: true,
       }
     })
-  }
-
-  createMonitoring () {
-    const loki = new K8sHelm(this, 'loki', {
-      chart: 'loki',
-      repo: 'https://grafana.github.io/helm-charts',
-      version: '6.29.0',
-      values: {
-        deploymentMode: 'SingleBinary',
-        singleBinary: { replicas: 1 },
-        write: { replicas: 0 },
-        read: { replicas: 0 },
-        backend: { replicas: 0 },
-        loki: {
-          useTestSchema: true,
-          storage: { type: 'filesystem' },
-        },
-        test: { enabled: false },
-      }
-    })
-
-    const lokiService = loki.apiObjects.find((o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/component') === 'gateway')!
-
-    const prometheus = new K8sHelm(this, 'prometheus', {
-      chart: 'kube-prometheus-stack',
-      repo: 'https://prometheus-community.github.io/helm-charts',
-      version: '71.2.0',
-      values: {
-        grafana: {
-          additionalDataSources: [{ name: 'Loki', type: 'loki', access: 'proxy', url: `http://${this.resolveDns(lokiService.name)}` }]
-        }
-      }
-    })
-
-    const grafanaService = prometheus.apiObjects.find((o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/name') === 'grafana')!
-
-    createInternalRoute(this, { name: 'grafana', service: grafanaService.name, access: this.props.twingateAccess })
   }
 
   createAPM () {
