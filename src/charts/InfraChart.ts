@@ -35,6 +35,7 @@ export class InfraChart extends K8sChart {
 
     this.createTwingateConnector()
     this.createAPM()
+    this.createLocalTunneling()
   }
 
   createIssuer () {
@@ -138,6 +139,13 @@ export class InfraChart extends K8sChart {
           image: 'newrelic/newrelic-node-init:latest',
         },
       },
+    })
+  }
+
+  createLocalTunneling () {
+    new K8sHelm(this, 'telepresence', {
+      chart: 'oci://ghcr.io/telepresenceio/telepresence-oss',
+      version: '2.22.4',
     })
   }
 }
