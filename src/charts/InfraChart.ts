@@ -138,6 +138,15 @@ export class InfraChart extends K8sChart {
           language: 'nodejs',
           image: 'newrelic/newrelic-node-init:latest',
         },
+        podLabelSelector: {
+          matchExpressions: [
+            {
+              key: 'instrument.nr',
+              operator: 'In',
+              values: ['nodejs']
+            }
+          ],
+        },
       },
     })
   }

@@ -281,10 +281,7 @@ export class EnvironmentChart extends K8sChart {
     const deployment = new Deployment(this, 'app', {
       replicas: 1,
       podMetadata: {
-        annotations: {
-          'newrelic.com/inject': 'true',
-          'newrelic.com/agent': 'nodejs',
-        }
+        labels: { 'instrument.nr': 'nodejs' },
       },
       containers: [{
         name: this.resolve('app'),
