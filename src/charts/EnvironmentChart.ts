@@ -45,11 +45,7 @@ export class EnvironmentChart extends K8sChart {
         secretName,
         issuerRef: this.props.issuer,
         commonName: this.props.domain.common,
-        dnsNames: Object.keys({
-          [this.props.domain.base]: true, // root domain a.com
-          [this.props.domain.common]: true, // first level wildcard *.com
-          [this.props.domain.scope('*').common]: true // second level wildcard *.*.com
-        })
+        dnsNames: Object.keys({ [this.props.domain.base]: true,  [this.props.domain.common]: true })
       }
     }) : undefined
 
@@ -282,18 +278,26 @@ export class EnvironmentChart extends K8sChart {
   }
 
   createApp () {
-    const service = new Deployment(this, 'traefik-whoami', {
+    const deployment = new Deployment(this, 'app', {
       replicas: 1,
+      podMetadata: {
+        annotations: {
+          'newrelic.com/inject': 'true',
+          'newrelic.com/agent': 'nodejs',
+        }
+      },
       containers: [{
-        image: 'traefik/whoami:latest',
+        name: this.resolve('app'),
+        image: 'kimcharli/nodejs-hello-world:latest',
         envVariables: {
-          WHOAMI_PORT_NUMBER: EnvValue.fromValue('8080'),
-          WHOAMI_NAME: EnvValue.fromValue('Who am I?')
+          PORT: EnvValue.fromValue('8080'),
         },
         portNumber: 8080,
         securityContext,
       }]
-    }).exposeViaService({ ports: [{ port: 80, targetPort: 8080 }] })
+    })
+
+    const service = deployment.exposeViaService({ ports: [{ port: 80, targetPort: 8080 }] })
 
     this.createExternalRoute('app', service, {
       host: this.props.domain.base

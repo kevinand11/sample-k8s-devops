@@ -1,3 +1,4 @@
+import { ApiObject } from '@devops/k8s-cdk'
 import { ClusterIssuer } from '@devops/k8s-cdk/cert-manager'
 import { K8sChart, K8sChartProps, K8sCRDs, K8sHelm, K8sInclude } from '@devops/k8s-cdk/k8s'
 import { Secret } from '@devops/k8s-cdk/plus'
@@ -122,6 +123,20 @@ export class InfraChart extends K8sChart {
         'kube-state-metrics': { enabled: true },
         'newrelic-logging': { enabled: true },
         'k8s-agents-operator': { enabled: true },
+        'nri-metadata-injection:': {
+          certManager: { enabled: true }
+        }
+      },
+    })
+
+    new ApiObject(this, 'nodejs-instrumentation', {
+      apiVersion: 'newrelic.com/v1alpha2',
+      kind: 'Instrumentation',
+      spec: {
+        agent: {
+          language: 'nodejs',
+          image: 'newrelic/newrelic-node-init:latest',
+        },
       },
     })
   }
