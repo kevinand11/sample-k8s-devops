@@ -10,6 +10,7 @@ interface InfraChartProps extends K8sChartProps {
   cloudflareApiToken: string
   twingateAccess: TwingateAccess
   twingateConnect: TwingateConnect
+  nrLicenseKey: string
 }
 
 export class InfraChart extends K8sChart {
@@ -34,6 +35,7 @@ export class InfraChart extends K8sChart {
 
     this.createTwingateConnector()
     // this.createMonitoring()
+    this.createAPM()
   }
 
   createIssuer () {
@@ -143,5 +145,23 @@ export class InfraChart extends K8sChart {
     const grafanaService = prometheus.apiObjects.find((o) => o.kind === 'Service' && o.metadata.getLabel('app.kubernetes.io/name') === 'grafana')!
 
     createInternalRoute(this, { name: 'grafana', service: grafanaService.name, access: this.props.twingateAccess })
+  }
+
+  createAPM () {
+    new K8sHelm(this, 'new-relic', {
+      chart: 'nri-bundle',
+      repo: 'https://helm-charts.newrelic.com',
+      version: '5.0.122',
+      values: {
+        global: {
+          licenseKey: this.props.nrLicenseKey,
+          cluster: 'stranerd-cluster',
+          lowDataMode: true,
+        },
+        'kube-state-metrics': { enabled: true },
+        'newrelic-logging': { enabled: true },
+        'k8s-agents-operator': { enabled: true },
+      },
+    })
   }
 }

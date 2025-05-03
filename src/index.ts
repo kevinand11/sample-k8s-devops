@@ -7,21 +7,19 @@ import { deleteCloudflareRecord, getLoadBalancerIP, getRequiredProcessEnv, upser
 
 const env = getRequiredProcessEnv('ENVIRONMENT')
 
-const cloudflareZoneId = devopsConfig.get('CLOUDFLARE_ZONE_ID')
 const cloudflareApiToken = devopsConfig.get('CLOUDFLARE_API_TOKEN')
 const domainName = devopsConfig.get('DOMAIN_NAME')
-const domainCertEmail = devopsConfig.get('DOMAIN_CERT_EMAIL')
-const twingateConnect = devopsConfig.get('TWINGATE_CONNECT', JSON.parse)
 
 const baseDomain = K8sDomain.of({ name: domainName, wildcard: true })
 const domain = env === 'prod' ? baseDomain : baseDomain.scope(env)
 
 const infraChart = new InfraChart({
   namespace: 'stranerd-infra',
-  certEmail: domainCertEmail,
+  certEmail: devopsConfig.get('DOMAIN_CERT_EMAIL'),
   cloudflareApiToken,
   twingateAccess: devopsConfig.get(`TWINGATE_ACCESS_INFRA`, JSON.parse),
-  twingateConnect,
+  twingateConnect: devopsConfig.get('TWINGATE_CONNECT', JSON.parse),
+  nrLicenseKey: devopsConfig.get('NEWRELIC_LICENSE_KEY')
 })
 
 const envChart = new EnvironmentChart({
@@ -33,7 +31,7 @@ const envChart = new EnvironmentChart({
 })
 
 const common = {
-  zoneId: cloudflareZoneId,
+  zoneId: devopsConfig.get('CLOUDFLARE_ZONE_ID'),
   apiToken: cloudflareApiToken,
   type: 'A' as const,
 }
