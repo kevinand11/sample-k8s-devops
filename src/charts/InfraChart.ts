@@ -96,7 +96,7 @@ export class InfraChart extends K8sChart {
         twingateOperator: {
           apiKey: this.props.twingateConnect.apiKey,
           network: this.props.twingateConnect.account,
-          remoteNetworkId: this.props.twingateConnect.remoteNetworkId,
+          remoteNetworkName: this.props.twingateConnect.remoteNetworkName,
         },
       },
     })

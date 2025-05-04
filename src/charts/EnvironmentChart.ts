@@ -14,7 +14,7 @@ interface EnvironmentChartProps extends K8sChartProps {
 }
 
 const securityContext: ContainerSecurityContextProps = {
-  ensureNonRoot: true,
+  ensureNonRoot: false,
   user: 1000,
   group: 1000,
   allowPrivilegeEscalation: false,
@@ -291,7 +291,8 @@ export class EnvironmentChart extends K8sChart {
         },
         portNumber: 8080,
         securityContext,
-      }]
+      }],
+      securityContext,
     })
 
     const service = deployment.exposeViaService({ ports: [{ port: 80, targetPort: 8080 }] })
