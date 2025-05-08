@@ -26,9 +26,11 @@
     "cdk8s-plus-32": "^2.0.12",
     "commander": "^13.1.0",
     "constructs": "^10.4.2",
+    "deasync": "^0.1.30",
     "zx": "^8.5.3"
   },
   "devDependencies": {
+    "@types/deasync": "^0.1.5",
     "cdk8s-cli": "^2.200.52",
     "tsx": "^4.19.4"
   }

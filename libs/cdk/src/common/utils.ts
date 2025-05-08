@@ -1,6 +1,7 @@
 import { execSync as execCommandSync } from 'node:child_process'
 import { access, constants, mkdir } from 'node:fs/promises'
 
+import deasync from 'deasync'
 import { $ } from 'zx'
 
 export function upsertNamespace (ns: string) {
@@ -57,4 +58,19 @@ export async function runWithTrials<T extends (trial: number) => any> (fn: T, op
 		}
 	}
 	throw error ?? new Error('failed to execute trials')
+}
+
+export function resolvePromiseSynchronously<T> (promise: Promise<T>) {
+	let done = false
+	let result: T
+
+	promise.then((res) => {
+		result = res
+		done = true
+	}).catch((err) => {
+		throw err
+	})
+
+	deasync.loopWhile(() => !done)
+	return result!
 }
