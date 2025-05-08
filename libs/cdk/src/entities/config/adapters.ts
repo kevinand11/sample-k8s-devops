@@ -59,7 +59,7 @@ export class FileConfigAdapter extends ConfigAdapter {
 	}
 
 	async load (scope) {
-		const fileContent = (await fs.readFile(this.#fullFilePath(scope))).toString()
+		const fileContent = (await fs.readFile(this.#fullFilePath(scope)).catch(() => '{}')).toString()
 		return JSON.parse(fileContent)
 	}
 

@@ -18,7 +18,7 @@ interface K8sConfigProps {
 type StringOrObject<T = string> = Record<string, T>
 
 export class Config {
-	#values: Promise<StringOrObject>
+	#values: Promise<StringOrObject> | StringOrObject
 	private constructor (private readonly props: K8sConfigProps) {
 		this.#values = this.props.adapter.load(this.props.scope)
 	}
@@ -30,8 +30,22 @@ export class Config {
 		return parser(value)
 	}
 
+	set (name: string, value: string) {
+		const values = this.#values instanceof Promise ? resolvePromiseSynchronously(this.#values) : this.#values
+		values[name] = value
+		this.#values = values
+		return this
+	}
+
+	setJson (values: StringOrObject<string | StringOrObject[] | StringOrObject>) {
+		Object.entries(values).forEach(([key, value]) => {
+			this.set(key, typeof value === 'string' ? value : JSON.stringify(value))
+		})
+		return this
+	}
+
 	toJSON (): Readonly<StringOrObject> {
-		const values = resolvePromiseSynchronously(this.#values)
+		const values = this.#values instanceof Promise ? resolvePromiseSynchronously(this.#values) : this.#values
 		return Object.freeze({
 			...(this.props.parent?.toJSON()),
 			...values
